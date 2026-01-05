@@ -1,4 +1,3 @@
-[![Actions Status](https://github.com/sanko/Alien-xmake/actions/workflows/linux.yml/badge.svg)](https://github.com/sanko/Alien-xmake/actions) [![Actions Status](https://github.com/sanko/Alien-xmake/actions/workflows/windows.yml/badge.svg)](https://github.com/sanko/Alien-xmake/actions) [![Actions Status](https://github.com/sanko/Alien-xmake/actions/workflows/macos.yml/badge.svg)](https://github.com/sanko/Alien-xmake/actions) [![Actions Status](https://github.com/sanko/Alien-xmake/actions/workflows/bsd.yml/badge.svg)](https://github.com/sanko/Alien-xmake/actions) [![MetaCPAN Release](https://badge.fury.io/pl/Alien-xmake.svg)](https://metacpan.org/release/Alien-xmake)
 # NAME
 
 Alien::xmake - Locate, Download, or Build and Install xmake
@@ -129,7 +128,7 @@ first with one of the following:
 
     ...or if you want to do it all by hand, try...
 
-    ```perl
+    ```
     $ git clone --recursive https://github.com/xmake-io/xmake.git
     # xmake maintains dependencies via git submodule so --recursive is required
     $ cd ./xmake

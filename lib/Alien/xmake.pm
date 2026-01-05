@@ -1,64 +1,48 @@
-package Alien::xmake 0.05 {
-    use strict;
-    use warnings;
+use v5.40;
+use experimental 'class';
+class Alien::xmake 0.06 {
     use Path::Tiny qw[path];
     #
-    my $Windows = $^O eq 'MSWin32';
-    my ($dir) = my @dirs = grep {defined} map {
-        my $path = path($_)
-            ->child( grep {defined} qw[auto share dist Alien-xmake], $Windows ? () : 'bin' );
-        $path->is_dir ? $path : ()
-    } grep {defined} @INC, config()->{xmake_dir};
-    warn $_ for @dirs;
-    #
-    sub config {
-        CORE::state $config //= sub {
-            if ( eval 'require Alien::xmake::ConfigData' ) {
-                return { map { $_ => Alien::xmake::ConfigData->config($_) }
-                        Alien::xmake::ConfigData->config_names };
-            }
+    field $windows = $^O eq 'MSWin32';
+    field $dir;
+    field $config : reader //= sub {
+        if ( eval 'require Alien::xmake::ConfigData' ) {
+            return { map { $_ => Alien::xmake::ConfigData->config($_) } Alien::xmake::ConfigData->config_names };
+        }
 
-            # TODO: die if running xmake fails... we obviously don't have it installed
-            { xmake_type => 'shared' };
-            }
-            ->();
-        $config;
+        # TODO: die if running xmake fails... we obviously don't have it installed
+        { xmake_type => 'shared' };
+        }
+        ->();
+    ADJUST {
+        my ($dir) = my @dirs = grep {defined} map {
+            my $path = path($_)->child( grep {defined} qw[auto share dist Alien-xmake], $windows ? () : 'bin' );
+            $path->is_dir ? $path : ()
+        } grep {defined} @INC, $config->{xmake_dir};
     }
-
+    #
     # Pointless
-    sub cflags       {''}
-    sub libs         {''}
-    sub dynamic_libs { }
+    method cflags ()       {''}
+    method libs ()         {''}
+    method dynamic_libs () { }
 
     # Valuable
-    sub install_type { config()->{xmake_type} }
-    sub bin_dir      { $dir // return; $dir->child('bin')->canonpath; }
+    method install_type () { $config->{xmake_type} }
+    method bin_dir ()      { $dir // return; $dir->child('bin'); }
 
-    sub exe {
-        config()->{xmake_exe}
-            // $dir->child( 'bin', 'xmake' . ( $Windows ? '.exe' : '' )->canonpath );
+    method exe () {
+        $config->{xmake_exe} // $dir->child( 'xmake' . ( $windows ? '.exe' : '' ) );
     }
 
-    sub xrepo {
-        config()->{xrepo_exe}
-            // $dir->child( 'bin', 'xrepo' . ( $Windows ? '.bat' : '' )->canonpath );
+    method xrepo () {
+        $config->{xrepo_exe} // $dir->child( 'xrepo' . ( $windows ? '.bat' : '' ) );
     }
+    method version () { $config->{xmake_ver} }
 
-    sub version {
-        CORE::state $ver;
-        if ( !defined $ver ) {
-            my $xmake = exe();
-            my $run   = `$xmake --version`;
-            ($ver) = $run =~ m[xmake (v.+?), A cross-platform build utility based on Lua];
-        }
-        $ver;
+    sub alien_helper () {
+        { xmake => sub { __PACKAGE__->new->exe }, xrepo => sub { __PACKAGE__->new->xrepo } }
     }
-
-    sub alien_helper {
-        { xmake => sub { __PACKAGE__->exe }, xrepo => sub { __PACKAGE__->xrepo } }
-    }
-}
-1;
+} 1;
 __END__
 
 =encoding utf-8

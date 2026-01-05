@@ -1,37 +1,30 @@
-use strict;
-use warnings;
-use lib 'lib', '../blib/lib', '../lib';
-use Test2::V0;
-
-#~ use Env qw[@PATH];
-#
+use v5.40;
+use blib;
+use Test2::V0 -no_srand => 1;
 use Alien::xmake;
-
-#~ diag File::ShareDir::dist_dir('Affix-xmake');
-#~ use Data::Dump;
-#~ ddx \@INC;
-#~ my ($dir) = grep {defined} map {my $path = path($_)->child(qw[auto share dist Alien-xmake]); $path->is_dir ? $path : ()} @INC;
-#~ ddx $dir;
-#~ ...;
-#~ use Path::Tiny qw[path];
-#~ my $path = path $INC{'Alien/xmake.pm'};
-#~ diag $path->parent;
+use File::Temp qw[tempdir];
 #
-diag 'Install type: ' . Alien::xmake->install_type;
-
-#~ unshift @PATH, Alien::xmake->bin_dir;
+my $xmake = Alien::xmake->new;
+diag 'Install type:  ' . $xmake->install_type;
+diag 'Xmake version: ' . $xmake->version;
+use Capture::Tiny qw[capture];
 #
 subtest xmake => sub {
-    my $exe = Alien::xmake->exe;
+    my $exe = $xmake->exe;
     diag 'Path to exe:  ' . $exe;
-    ok `$exe --version`, $exe . ' --version';
+    my ( $stdout, $stderr, $exit ) = capture { system $exe, '--version' };
+    is $exit, 0, $exe . ' --version';
+    diag $stdout if length $stdout;
+    diag $stderr if length $stderr;
 };
 #
 subtest xrepo => sub {
-    my $exe = Alien::xmake->xrepo;
+    my $exe = $xmake->xrepo;
     diag 'Path to exe:  ' . $exe;
-    ok `$exe --version`, $exe . ' --version';
+    my ( $stdout, $stderr, $exit ) = capture { system $exe, '--version' };
+    is $exit, 0, $exe . ' --version';
+    diag $stdout if length $stdout;
+    diag $stderr if length $stderr;
 };
-ok( Alien::xmake->version, Alien::xmake->version );
 #
 done_testing;

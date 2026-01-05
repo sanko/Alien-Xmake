@@ -1,27 +1,36 @@
-use strict;
-use warnings;
-use lib 'lib', '../blib/lib', '../lib';
+use v5.40;
+use blib;
 use Test2::V0;
-use File::Temp qw[tempdir];
-use Env        qw[@PATH];
+use File::Temp    qw[tempdir];
+use Capture::Tiny qw[capture];
+my $dir = tempdir();
 #
 use Alien::xmake;
 #
+my $xmake = Alien::xmake->new;
 {
-    my $dir = tempdir();
     chdir $dir;
-    unshift @PATH, Alien::xmake->bin_dir;
-    my $exe = Alien::xmake->exe;
-    note $exe;
-    system $exe, qw[create --quiet --project=test_cpp --language=c++ --template=console];
+    my ( $stdout, $stderr, $exit ) = capture {
+        system $xmake->exe,
+        qw[create --quiet --project=test_cpp --language=c++ --template=console]
+    };
     ok( ( -d 'test_cpp' ), 'project created' );
+
+    #~ ok !$exit, 'project created';
+    diag $stdout if $exit && length $stdout;
+    diag $stderr if $exit && length $stderr;
     chdir 'test_cpp';
     subtest compile => sub {
         my $todo = todo 'Require a working compiler';    # outside the scope of Alien::xmake
         diag 'Building project..';
-        ok !system( $exe, '--quiet' ), 'project built';
-        my $greeting = `$exe run`;
-        ok $greeting =~ /hello world!/, 'project says hello';
+        ( $stdout, $stderr, $exit ) = capture { system $xmake->exe, '--quiet' };
+        ok !$exit, 'project built';
+        diag $stdout if $exit && length $stdout;
+        diag $stderr if $exit && length $stderr;
+        ( $stdout, $stderr, $exit ) = capture { system $xmake->exe, 'run' };
+        ok $stdout =~ /hello world!/, 'project says hello';
+        diag $stdout if $exit && length $stdout;
+        diag $stderr if $exit && length $stderr;
     }
 }
 #

@@ -4,13 +4,15 @@
    "author" : [
       "Sanko Robinson <sanko@cpan.org>"
    ],
+   "description" : "Xmake is a cross-platform build utility based on Lua. With it comes a powerful package management system.",
    "dynamic_config" : 0,
-   "generated_by" : "Minilla/v3.1.25, CPAN::Meta::Converter version 2.150010",
+   "generated_by" : "App::mii v1.0.0",
+   "keywords" : [],
    "license" : [
       "artistic_2"
    ],
    "meta-spec" : {
-      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "url" : "https://metacpan.org/pod/CPAN::Meta::Spec",
       "version" : 2
    },
    "name" : "Alien-xmake",
@@ -31,6 +33,7 @@
          "requires" : {
             "Archive::Tar" : "0",
             "CPAN::Meta" : "0",
+            "Capture::Tiny" : "0",
             "File::Basename" : "0",
             "File::Spec::Functions" : "0",
             "File::Temp" : "0",
@@ -62,30 +65,46 @@
       "runtime" : {
          "requires" : {
             "Path::Tiny" : "0",
-            "perl" : "5.020000"
+            "perl" : "v5.40.0"
          }
       },
       "test" : {
          "requires" : {
+            "Capture::Tiny" : "0",
             "File::Temp" : "0",
             "Test2::V0" : "0"
          }
       }
    },
-   "release_status" : "unstable",
+   "provides" : {
+      "Alien::xmake" : {
+         "file" : "lib/Alien/xmake.pm",
+         "version" : "0.06"
+      }
+   },
+   "release_status" : "stable",
    "resources" : {
       "bugtracker" : {
          "web" : "https://github.com/sanko/Alien-xmake/issues"
       },
       "homepage" : "https://github.com/sanko/Alien-xmake",
+      "license" : [
+         "http://www.perlfoundation.org/artistic_license_2_0"
+      ],
       "repository" : {
          "type" : "git",
          "url" : "https://github.com/sanko/Alien-xmake.git",
          "web" : "https://github.com/sanko/Alien-xmake"
       }
    },
-   "version" : "0.05",
+   "version" : "0.06",
    "x_authority" : "cpan:SANKO",
+   "x_ignore" : [
+      ".tidyallrc",
+      ".gitignore",
+      ".clang-format",
+      ".github/**"
+   ],
    "x_serialization_backend" : "JSON::PP version 4.16",
    "x_static_install" : 0
 }

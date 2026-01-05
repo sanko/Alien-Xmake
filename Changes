@@ -1,27 +1,49 @@
-Revision history for Perl extension Alien::xmake
+# Changelog
 
-{{$NEXT}}
+All notable changes to Alien::xmake will be documented in this file.
 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+    - Support system installs on Windows
     - Expose xrepo
 
-0.05 2024-03-18T17:19:34Z
+### Changed
+
+    - Bump to Xmake 3.0.6
+
+## [0.05] - 2024-03-18
+
+### Fixed
 
     - Resort to git when we fail to download snapshot with HTTP::Tiny (kinda pointless but the code was already there)
 
-0.04 2024-03-17T17:47:37Z
+## [0.04] - 2024-03-17
+
+### Changed
 
     - Install v2.8.8 on platforms that build from source
     - Pull tarball instead of git clone on platforms that build from source
 
-0.03 2024-03-17T16:31:16Z
+## [0.03] - 2024-03-17
+
+### Changed
 
     - Install v2.8.8 on Windows
 
-0.02 2024-03-17T00:38:59Z
+## [0.02] - 2024-03-17
+
+### Changed
 
     - Minor documentation changes
     - Move to Test2::V0
 
-0.01 2023-10-02T22:07:51Z
+## [0.01] - 2023-10-02
+
+### Changed
 
     - It exists.

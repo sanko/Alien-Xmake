@@ -35,8 +35,10 @@ temp
 t/test_cpp
 t/.xmake/
 test_cpp
-share/share
+share/
 share/bin
 *.session
 xmake.*
 .xmake/*
+xmake_installer*
+MANIFEST
