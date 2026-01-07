@@ -42,3 +42,6 @@ xmake.*
 .xmake/*
 xmake_installer*
 MANIFEST
+
+_build_xmake
+eg/inst.pl

@@ -3,14 +3,20 @@ requires 'perl', 'v5.40.0';
 on configure => sub {
     requires 'Archive::Tar';
     requires 'CPAN::Meta';
-    requires 'Capture::Tiny';
+    requires 'Data::Dumper';
+    requires 'Exporter',          '5.57';
+    requires 'ExtUtils::Helpers', '0.028';
+    requires 'ExtUtils::Install';
+    requires 'ExtUtils::InstallPaths', '0.002';
     requires 'File::Basename';
+    requires 'File::Find';
+    requires 'File::Path';
     requires 'File::Spec::Functions';
-    requires 'File::Temp';
-    requires 'File::Which';
+    requires 'Getopt::Long', '2.36';
     requires 'HTTP::Tiny';
-    requires 'Module::Build', '0.4005';
+    requires 'JSON::PP', '2';
     requires 'Path::Tiny';
+    requires 'perl', 'v5.40.0';
 };
 on test => sub {
     requires 'Capture::Tiny';

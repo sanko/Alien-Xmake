@@ -1,49 +1,88 @@
 use v5.40;
 use experimental 'class';
+
 class Alien::xmake 0.06 {
     use Path::Tiny qw[path];
-    #
+
     field $windows = $^O eq 'MSWin32';
-    field $dir;
+
     field $config : reader //= sub {
         if ( eval 'require Alien::xmake::ConfigData' ) {
-            return { map { $_ => Alien::xmake::ConfigData->config($_) } Alien::xmake::ConfigData->config_names };
+            my $conf = { map { $_ => Alien::xmake::ConfigData->config($_) } Alien::xmake::ConfigData->config_names };
+
+            # CRITICAL FIX: The raw 'bin' value in config is a relative path string.
+            # We must call the generated helper method to get the absolute path.
+            if ( Alien::xmake::ConfigData->can('bin') ) {
+                $conf->{bin} = Alien::xmake::ConfigData->bin;
+            }
+            return $conf;
         }
 
-        # TODO: die if running xmake fails... we obviously don't have it installed
-        { xmake_type => 'shared' };
-        }
-        ->();
+        # Fallback / manual install detection
+        return { install_type => 'system' };
+    }->();
+
+    # We don't really need $dir detection if ConfigData is working,
+    # but we keep it for fallback scenarios.
+    field $dir;
     ADJUST {
-        my ($dir) = my @dirs = grep {defined} map {
-            my $path = path($_)->child( grep {defined} qw[auto share dist Alien-xmake], $windows ? () : 'bin' );
-            $path->is_dir ? $path : ()
-        } grep {defined} @INC, $config->{xmake_dir};
+        if ( ! $config->{bin} || ! -e $config->{bin} ) {
+             ($dir) = grep { -d $_ } map {
+                path($_)->child( qw[auto share dist Alien-xmake], $windows ? () : 'bin' )
+            } @INC;
+        }
     }
-    #
+
     # Pointless
     method cflags ()       {''}
     method libs ()         {''}
     method dynamic_libs () { }
 
     # Valuable
-    method install_type () { $config->{xmake_type} }
-    method bin_dir ()      { $dir // return; $dir->child('bin'); }
+    method install_type () { $config->{install_type} }
+
+    method bin_dir () {
+        my $exe = $self->exe;
+        return path($exe)->parent->stringify;
+    }
 
     method exe () {
-        $config->{xmake_exe} // $dir->child( 'xmake' . ( $windows ? '.exe' : '' ) );
+        my $bin = $config->{bin};
+
+        # If ConfigData failed or we are in a fallback state:
+        if ( ! $bin && $dir ) {
+            $bin = $dir->child( 'xmake' . ( $windows ? '.exe' : '' ) );
+        }
+
+        # Ensure we return a stringified absolute path safe for system()
+        return path($bin)->absolute->stringify;
     }
 
     method xrepo () {
-        $config->{xrepo_exe} // $dir->child( 'xrepo' . ( $windows ? '.bat' : '' ) );
+        # xrepo is usually in the same folder as xmake
+        my $exe = path( $self->exe );
+        my $xrepo_name = 'xrepo' . ( $windows ? '.bat' : '' );
+
+        # Check sibling
+        my $try = $exe->parent->child($xrepo_name);
+        return $try->stringify if -e $try;
+
+        # Fallback to config or raw lookup
+        return $config->{bin}
+            ? path($config->{bin})->parent->child($xrepo_name)->stringify
+            : $xrepo_name;
     }
-    method version () { $config->{xmake_ver} }
+
+    method version () { $config->{version} }
 
     sub alien_helper () {
         { xmake => sub { __PACKAGE__->new->exe }, xrepo => sub { __PACKAGE__->new->xrepo } }
     }
 } 1;
+
 __END__
+
+=pod
 
 =encoding utf-8
 
