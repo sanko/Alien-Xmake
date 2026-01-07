@@ -92,7 +92,7 @@ use alienfile;
 
 # Xmake Cookbook
 
-xmake is severely underrated so I'll add more nifty things here but for now just a quick example.
+Xmake is severely underrated so I'll add more nifty things here but for now just a quick example.
 
 You're free to create your own projects, of course, but Xmake comes with the ability to generate an entire project for
 you:

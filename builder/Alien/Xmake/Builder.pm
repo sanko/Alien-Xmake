@@ -320,12 +320,26 @@ use %s;
         $temppath->mkpath;
         my $arch_env   = $ENV{PROCESSOR_ARCHITECTURE} // '';
         my $arch64_env = $ENV{PROCESSOR_ARCHITEW6432} // '';
-        my $is_x64     = ( $arch_env eq 'AMD64' || $arch_env eq 'IA64' || $arch64_env eq 'AMD64' || $arch64_env eq 'IA64' );
-        my $winarch    = $is_x64 ? 'win64' : 'win32';
-        my $filename   = "xmake-$target_version.$winarch.exe";
-        my $url        = "https://github.com/xmake-io/xmake/releases/download/$target_version/$filename";
-        my $outfile    = $temppath->child('xmake-installer.exe');
+        my $filename;
 
+        # Check for ARM64
+        if ( $arch_env eq 'ARM64' || $arch64_env eq 'ARM64' ) {
+
+            # ARM64 releases currently use the 'bundle' naming convention
+            $filename = "xmake-bundle-$target_version.arm64.exe";
+        }
+
+        # Check for x64 (AMD64/IA64)
+        elsif ( $arch_env eq 'AMD64' || $arch_env eq 'IA64' || $arch64_env eq 'AMD64' || $arch64_env eq 'IA64' ) {
+            $filename = "xmake-$target_version.win64.exe";
+        }
+
+        # Fallback to x86
+        else {
+            $filename = "xmake-$target_version.win32.exe";
+        }
+        my $url     = "https://github.com/xmake-io/xmake/releases/download/$target_version/$filename";
+        my $outfile = $temppath->child('xmake-installer.exe');
         if ( !$self->_download_file( $url, $outfile ) ) {
             die "Download failed for $url";
         }
@@ -334,6 +348,10 @@ use %s;
         my $outfile_str = $outfile->stringify;
         $outfile_str =~ s{/}{\\}g;
         say "Installing to $install_str...";
+
+        # /NOADMIN: Avoid UAC prompt if possible (installs to local user path if allowed)
+        # /S: Silent
+        # /D: Destination directory
         my $cmd = qq{"$outfile_str" /NOADMIN /S /D=$install_str};
         my $ret = system($cmd);
         die "Installer failed with code $ret" if $ret != 0;
