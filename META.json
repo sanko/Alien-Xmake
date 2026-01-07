@@ -70,7 +70,6 @@
       },
       "runtime" : {
          "requires" : {
-            "Path::Tiny" : "0",
             "perl" : "v5.40.0"
          }
       },

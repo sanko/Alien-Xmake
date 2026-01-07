@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     - Support system installs on Windows
     - Expose xrepo
+    - Demos in `eg/`
+        - `eg/xmake_demo.pl` creates and builds a simple shared library in C
+        - `eg/xrepo_demo.pl` queries for zlib's info, installs it locally, and spews the flags required to build against it
 
 ### Changed
 

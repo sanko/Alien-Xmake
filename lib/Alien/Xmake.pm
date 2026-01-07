@@ -1,35 +1,48 @@
 use v5.40;
 use experimental 'class';
 class Alien::Xmake 0.06 {
-    use Path::Tiny qw[path];
+    use File::Spec;
+    use File::Basename qw(dirname);
     field $windows = $^O eq 'MSWin32';
     field $config : param //= sub {
-        if ( eval 'require Alien::Xmake::ConfigData' ) {
-            my $conf = { map { $_ => Alien::Xmake::ConfigData->config($_) } Alien::Xmake::ConfigData->config_names };
+        my $conf;
+        try {
+            require Alien::Xmake::ConfigData;    # Try to load the ConfigData module generated during install
+            $conf = { map { $_ => Alien::Xmake::ConfigData->config($_) } Alien::Xmake::ConfigData->config_names };
 
             # The raw 'bin' value in config is a relative path string.
             # We must call the generated helper method to get the absolute path.
             if ( Alien::Xmake::ConfigData->can('bin') ) {
                 $conf->{bin} = Alien::Xmake::ConfigData->bin;
             }
-            return $conf;
         }
-
-        # Fallback / manual install detection
-        return { install_type => 'system' };
+        catch ($e) {    # Fallback / manual install detection
+            $conf = { install_type => 'system' };
+        }
+        return $conf;
         }
         ->();
 
     # We don't really need $dir detection if ConfigData is working,
-    # but we keep it for fallback scenarios.
+    # but we keep it for fallback scenarios (running from blib/lib, etc).
     field $dir;
     ADJUST {
         if ( !$config->{bin} || !-e $config->{bin} ) {
-            ($dir) = grep { -d $_ } map { path($_)->child( qw[auto share dist Alien-Xmake], $windows ? () : 'bin' ) } @INC;
+            my @parts = qw[auto share dist Alien-Xmake];
+            push @parts, 'bin' unless $windows;
+
+            # Look through @INC for the share directory
+            foreach my $inc (@INC) {
+                my $d = File::Spec->catdir( $inc, @parts );
+                if ( -d $d ) {
+                    $dir = $d;
+                    last;
+                }
+            }
         }
     }
 
-    # Pointless
+    # Pointless stubs required by some Alien::Base consumers
     method cflags ()       {''}
     method libs ()         {''}
     method dynamic_libs () { }
@@ -38,40 +51,83 @@ class Alien::Xmake 0.06 {
     method install_type () { $config->{install_type} }
 
     method bin_dir () {
-        my $exe = $self->exe;
-        return path($exe)->parent->stringify;
+
+        # Return the directory of the raw path (unquoted)
+        my $exe = $self->_resolve_path;
+        return dirname($exe);
     }
 
     method exe () {
-        my $bin = $config->{bin};
 
-        # If ConfigData failed or we are in a fallback state:
-        if ( !$bin && $dir ) {
-            $bin = $dir->child( 'xmake' . ( $windows ? '.exe' : '' ) );
-        }
-
-        # Ensure we return a stringified absolute path safe for system()
-        return path($bin)->absolute->stringify;
+        # Return a potentially quoted path for execution
+        my $path = $self->_resolve_path;
+        return $self->_quote_path($path);
     }
 
     method xrepo () {
 
         # xrepo is usually in the same folder as Xmake
-        my $exe        = path( $self->exe );
+        my $exe_path   = $self->_resolve_path;
+        my $parent     = dirname($exe_path);
         my $xrepo_name = 'xrepo' . ( $windows ? '.bat' : '' );
 
         # Check sibling
-        my $try = $exe->parent->child($xrepo_name);
-        return $try->stringify if -e $try;
+        my $try = File::Spec->catfile( $parent, $xrepo_name );
+        if ( -e $try ) {
+            return $self->_quote_path($try);
+        }
 
-        # Fallback to config or raw lookup
-        return $config->{bin} ? path( $config->{bin} )->parent->child($xrepo_name)->stringify : $xrepo_name;
+        # Fallback to config path calculation if the sibling check failed
+        if ( $config->{bin} ) {
+            my $conf_parent = dirname( $config->{bin} );
+            my $target      = File::Spec->catfile( $conf_parent, $xrepo_name );
+            return $self->_quote_path($target);
+        }
+
+        # Last resort: return bare command
+        return $xrepo_name;
     }
-    method version ()             { $config->{version} }
+    method version ()             { $self->install_type eq 'system' ? $self->_getver : $config->{version} }
+    method build ()               { $self->_getbuild }
     method config ( $key //= () ) { defined $key ? $config->{$key} : $config }
 
     sub alien_helper () {
         { xmake => sub { __PACKAGE__->new->exe }, xrepo => sub { __PACKAGE__->new->xrepo } }
+    }
+    #
+    method _getver() {
+        my ( $ver, undef ) = $self->_getver_build;
+        "v$ver";
+    }
+
+    method _getbuild() {
+        my ( undef, $build ) = $self->_getver_build;
+        $build;
+    }
+
+    method _getver_build() {
+        my $cmd = $self->exe;
+        state $out //= qx[$cmd --version];
+        return ( $1, $2 ) if $out =~ /xmake\s+v?(\d+\.\d+\.\d+)(?:\+(.+),)?/i;
+        ( '0.0.0', () );
+    }
+
+    # Resolve absolute path without quotes
+    method _resolve_path () {
+        my $bin = $config->{bin};
+
+        # If ConfigData failed or we are in a fallback state:
+        $bin = File::Spec->catfile( $dir, 'xmake' . ( $windows ? '.exe' : '' ) ) if !$bin && $dir;
+        $bin //= 'xmake';
+
+        # Ensure we return a stringified absolute path safe for system()
+        File::Spec->rel2abs($bin);
+    }
+
+    # Quote path if on Windows and spaces exist
+    method _quote_path ($path) {
+        return qq{"$path"} if $windows && $path =~ /\s/;
+        $path;
     }
 } 1;
 __END__
@@ -88,10 +144,12 @@ Alien::Xmake - Locate, Download, or Build and Install Xmake
 
     use Alien::Xmake;
 
-    system Alien::Xmake->exe, '--help';
-    system Alien::Xmake->exe, qw[create -t qt.widgetapp test];
+    my $xmake = Alien::Xmake->new;
 
-    system Alien::Xmake->xrepo, qw[info libpng];
+    system $xmake->exe, '--help';
+    system $xmake->exe, qw[create -t qt.widgetapp test];
+
+    system $xmake->xrepo, qw[info libpng];
 
 =head1 DESCRIPTION
 
@@ -102,6 +160,13 @@ maintaining the flexibly required in a build system. With Xmake, you can focus o
 
 Xmake can be used to directly build source code (like with Make or Ninja), or it can generate project source files like
 CMake or Meson. It also has a built-in package management system to help users integrate C/C++ dependencies.
+
+
+If you want to know more, please refer to the L<Documentation|https://xmake.io/guide/quick-start.html>,
+L<GitHub|https://github.com/xmake-io/xmake>, or L<Gitee|https://gitee.com/tboox/xmake>. You are also welcome to join
+the L<community|https://xmake.io/about/contact.html>.
+
+=for html <p align="center"><img width="916" height="236" src="https://xmake.io/assets/img/index/xmake-basic-render.gif"></p>
 
 =head1 Methods
 
@@ -152,7 +217,7 @@ To use Xmake in your C<alienfile>s, require this module and use C<%{xmake}> and 
 
 =head1 Xmake Cookbook
 
-xmake is severely underrated so I'll add more nifty things here but for now just a quick example.
+Xmake is severely underrated so I'll add more nifty things here but for now just a quick example.
 
 You're free to create your own projects, of course, but Xmake comes with the ability to generate an entire project for
 you:
@@ -261,7 +326,9 @@ You'll need to add GURU to your system repository first.
 
 =item FreeBSD
 
-Build from source using gmake instead of make.
+Build from source using gmake instead of make or try this:
+
+    $
 
 =item Android (Termux)
 
@@ -272,6 +339,8 @@ Build from source using gmake instead of make.
 =head1 See Also
 
 L<https://xmake.io/>
+
+Demos for both `xmake` and `xrepo` in `eg/`.
 
 =head1 LICENSE
 

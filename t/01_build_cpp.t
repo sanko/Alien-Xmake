@@ -1,6 +1,6 @@
 use v5.40;
 use blib;
-use Test2::V0;
+use Test2::V0 -no_srand => 1;
 use File::Temp    qw[tempdir];
 use Capture::Tiny qw[capture];
 my $dir = tempdir();

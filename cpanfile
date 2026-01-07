@@ -1,4 +1,3 @@
-requires 'Path::Tiny';
 requires 'perl', 'v5.40.0';
 on configure => sub {
     requires 'Archive::Tar';

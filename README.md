@@ -7,10 +7,12 @@ Alien::Xmake - Locate, Download, or Build and Install Xmake
 ```perl
 use Alien::Xmake;
 
-system Alien::Xmake->exe, '--help';
-system Alien::Xmake->exe, qw[create -t qt.widgetapp test];
+my $xmake = Alien::Xmake->new;
 
-system Alien::Xmake->xrepo, qw[info libpng];
+system $xmake->exe, '--help';
+system $xmake->exe, qw[create -t qt.widgetapp test];
+
+system $xmake->xrepo, qw[info libpng];
 ```
 
 # DESCRIPTION
@@ -22,6 +24,14 @@ maintaining the flexibly required in a build system. With Xmake, you can focus o
 
 Xmake can be used to directly build source code (like with Make or Ninja), or it can generate project source files like
 CMake or Meson. It also has a built-in package management system to help users integrate C/C++ dependencies.
+
+If you want to know more, please refer to the [Documentation](https://xmake.io/guide/quick-start.html),
+[GitHub](https://github.com/xmake-io/xmake), or [Gitee](https://gitee.com/tboox/xmake). You are also welcome to join
+the [community](https://xmake.io/about/contact.html).
+
+<div>
+    <p align="center"><img width="916" height="236" src="https://xmake.io/assets/img/index/xmake-basic-render.gif"></p>
+</div>
 
 # Methods
 
@@ -211,7 +221,11 @@ one of the following:
 
 - FreeBSD
 
-    Build from source using gmake instead of make.
+    Build from source using gmake instead of make or try this:
+
+    ```
+    $
+    ```
 
 - Android (Termux)
 
@@ -222,6 +236,8 @@ one of the following:
 # See Also
 
 [https://xmake.io/](https://xmake.io/)
+
+Demos for both \`xmake\` and \`xrepo\` in \`eg/\`.
 
 # LICENSE
 

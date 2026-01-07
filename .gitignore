@@ -46,3 +46,5 @@ MANIFEST
 _build_xmake
 eg/inst.pl
 eg/xmake-inst/
+
+eg/test/
