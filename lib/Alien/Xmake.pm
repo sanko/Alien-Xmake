@@ -328,7 +328,7 @@ You'll need to add GURU to your system repository first.
 
 Build from source using gmake instead of make or try this:
 
-    $
+    $ pkg install xmake-io
 
 =item Android (Termux)
 
@@ -340,7 +340,7 @@ Build from source using gmake instead of make or try this:
 
 L<https://xmake.io/>
 
-Demos for both `xmake` and `xrepo` in `eg/`.
+Demos for both C<xmake> and C<xrepo> in C<eg/>.
 
 =head1 LICENSE
 
