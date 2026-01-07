@@ -1,35 +1,31 @@
 use v5.40;
 use experimental 'class';
-
-class Alien::xmake 0.06 {
+class Alien::Xmake 0.06 {
     use Path::Tiny qw[path];
-
     field $windows = $^O eq 'MSWin32';
+    field $config : param //= sub {
+        if ( eval 'require Alien::Xmake::ConfigData' ) {
+            my $conf = { map { $_ => Alien::Xmake::ConfigData->config($_) } Alien::Xmake::ConfigData->config_names };
 
-    field $config : reader //= sub {
-        if ( eval 'require Alien::xmake::ConfigData' ) {
-            my $conf = { map { $_ => Alien::xmake::ConfigData->config($_) } Alien::xmake::ConfigData->config_names };
-
-            # CRITICAL FIX: The raw 'bin' value in config is a relative path string.
+            # The raw 'bin' value in config is a relative path string.
             # We must call the generated helper method to get the absolute path.
-            if ( Alien::xmake::ConfigData->can('bin') ) {
-                $conf->{bin} = Alien::xmake::ConfigData->bin;
+            if ( Alien::Xmake::ConfigData->can('bin') ) {
+                $conf->{bin} = Alien::Xmake::ConfigData->bin;
             }
             return $conf;
         }
 
         # Fallback / manual install detection
         return { install_type => 'system' };
-    }->();
+        }
+        ->();
 
     # We don't really need $dir detection if ConfigData is working,
     # but we keep it for fallback scenarios.
     field $dir;
     ADJUST {
-        if ( ! $config->{bin} || ! -e $config->{bin} ) {
-             ($dir) = grep { -d $_ } map {
-                path($_)->child( qw[auto share dist Alien-xmake], $windows ? () : 'bin' )
-            } @INC;
+        if ( !$config->{bin} || !-e $config->{bin} ) {
+            ($dir) = grep { -d $_ } map { path($_)->child( qw[auto share dist Alien-Xmake], $windows ? () : 'bin' ) } @INC;
         }
     }
 
@@ -50,7 +46,7 @@ class Alien::xmake 0.06 {
         my $bin = $config->{bin};
 
         # If ConfigData failed or we are in a fallback state:
-        if ( ! $bin && $dir ) {
+        if ( !$bin && $dir ) {
             $bin = $dir->child( 'xmake' . ( $windows ? '.exe' : '' ) );
         }
 
@@ -59,8 +55,9 @@ class Alien::xmake 0.06 {
     }
 
     method xrepo () {
-        # xrepo is usually in the same folder as xmake
-        my $exe = path( $self->exe );
+
+        # xrepo is usually in the same folder as Xmake
+        my $exe        = path( $self->exe );
         my $xrepo_name = 'xrepo' . ( $windows ? '.bat' : '' );
 
         # Check sibling
@@ -68,18 +65,15 @@ class Alien::xmake 0.06 {
         return $try->stringify if -e $try;
 
         # Fallback to config or raw lookup
-        return $config->{bin}
-            ? path($config->{bin})->parent->child($xrepo_name)->stringify
-            : $xrepo_name;
+        return $config->{bin} ? path( $config->{bin} )->parent->child($xrepo_name)->stringify : $xrepo_name;
     }
-
-    method version () { $config->{version} }
+    method version ()             { $config->{version} }
+    method config ( $key //= () ) { defined $key ? $config->{$key} : $config }
 
     sub alien_helper () {
         { xmake => sub { __PACKAGE__->new->exe }, xrepo => sub { __PACKAGE__->new->xrepo } }
     }
 } 1;
-
 __END__
 
 =pod
@@ -88,26 +82,26 @@ __END__
 
 =head1 NAME
 
-Alien::xmake - Locate, Download, or Build and Install xmake
+Alien::Xmake - Locate, Download, or Build and Install Xmake
 
 =head1 SYNOPSIS
 
-    use Alien::xmake;
-    system Alien::xmake->exe, '--help';
-    system Alien::xmake->exe, 'create -t qt.widgetapp test';
+    use Alien::Xmake;
+
+    system Alien::Xmake->exe, '--help';
+    system Alien::Xmake->exe, qw[create -t qt.widgetapp test];
+
+    system Alien::Xmake->xrepo, qw[info libpng];
 
 =head1 DESCRIPTION
 
-xmake is a lightweight, cross-platform build utility based on Lua. It uses a
-Lua script to maintain project builds, but is driven by a dependency-free core
-program written in C. Compared with Makefiles or CMake, the configuration
-syntax is (in the opinion of the author) much more concise and intuitive. As
-such, it's friendly to novices while still maintaining the flexibly required in
-a build system. With xmake, you can focus on your project instead of the build.
+Xmake is a lightweight, cross-platform build utility based on Lua. It uses a Lua script to maintain project builds, but
+is driven by a dependency-free core program written in C. Compared with Makefiles or CMake, the configuration syntax is
+(in the opinion of the author) much more concise and intuitive. As such, it's friendly to novices while still
+maintaining the flexibly required in a build system. With Xmake, you can focus on your project instead of the build.
 
-xmake can be used to directly build source code (like with Make or Ninja), or
-it can generate project source files like CMake or Meson. It also has a
-built-in package management system to help users integrate C/C++ dependencies.
+Xmake can be used to directly build source code (like with Make or Ninja), or it can generate project source files like
+CMake or Meson. It also has a built-in package management system to help users integrate C/C++ dependencies.
 
 =head1 Methods
 
@@ -119,21 +113,20 @@ Returns 'system' or 'shared'.
 
 =head2 C<exe()>
 
-    system Alien::xmake->exe;
+    system Alien::Xmake->exe;
 
-Returns the full path to the xmake executable.
+Returns the full path to the Xmake executable.
 
 =head2 C<xrepo()>
 
-    system Alien::xmake->xrepo;
+    system Alien::Xmake->xrepo;
 
-Returns the full path to the L<xrepo|https://github.com/xmake-io/xmake-repo>
-executable.
+Returns the full path to the L<xrepo|https://github.com/xmake-io/xmake-repo> executable.
 
 =head2 C<bin_dir()>
 
     use Env qw[@PATH];
-    unshift @PATH, Alien::xmake->bin_dir;
+    unshift @PATH, Alien::Xmake->bin_dir;
 
 Returns a list of directories you should push onto your PATH.
 
@@ -141,17 +134,15 @@ For a 'system' install this step will not be required.
 
 =head2 C<version()>
 
-    my $ver = Alien::xmake->version;
+    my $ver = Alien::Xmake->version;
 
-Returns the version of xmake installed.
+Returns the version of Xmake installed.
 
-Under a 'system' install, C<xmake --version> is run once and the version number
-is cached.
+Under a 'system' install, C<xmake --version> is run once and the version number is cached.
 
 =head1 Alien::Base Helper
 
-To use xmake in your C<alienfile>s, require this module and use C<%{xmake}> and
-C<%{xrepo}>.
+To use Xmake in your C<alienfile>s, require this module and use C<%{xmake}> and C<%{xrepo}>.
 
     use alienfile;
     # ...
@@ -159,34 +150,30 @@ C<%{xrepo}>.
         [ '%{xrepo}', 'install ...' ]
     # ...
 
-=head1 xmake Cookbook
+=head1 Xmake Cookbook
 
-xmake is severely underrated so I'll add more nifty things here but for now
-just a quick example.
+xmake is severely underrated so I'll add more nifty things here but for now just a quick example.
 
-You're free to create your own projects, of course, but xmake comes with the
-ability to generate an entire project for you:
+You're free to create your own projects, of course, but Xmake comes with the ability to generate an entire project for
+you:
 
     $ xmake create -P hi    # generates a basic console project in C++ and xmake.lua build script
     $ cd hi
     $ xmake -y              # builds the project if required, installing defined prerequisite libs, etc.
     $ xmake run             # runs the target binary which prints 'hello, world!'
 
-C<xmake create> is a lot like C<minil new> in that it generates a new project
-for you that's ready to build even before you change anything. It even tosses a
-C<.gitignore> file in. You can generate projects in C++, Go, Objective C, Rust,
-Swift, D, Zig, Vale, Pascal, Nim, Fortran, and more. You can also generate
-boilerplate projects for simple console apps, static and shared libraries,
-macOS bundles, GUI apps based on Qt or wxWidgets, IOS apps, and more.
+C<xmake create> is a lot like C<minil new> in that it generates a new project for you that's ready to build even before
+you change anything. It even tosses a C<.gitignore> file in. You can generate projects in C++, Go, Objective C, Rust,
+Swift, D, Zig, Vale, Pascal, Nim, Fortran, and more. You can also generate boilerplate projects for simple console
+apps, static and shared libraries, macOS bundles, GUI apps based on Qt or wxWidgets, IOS apps, and more.
 
 See C<xmake create --help> for a full list.
 
 =head1 Prerequisites
 
-Windows simply downloads an installer but elsewhere, you gotta have git, make,
-and a C compiler installed to build and install xmake. If you'd like
-Alien::xmake to use a pre-built or system install of xmake, install it yourself
-first with one of the following:
+Windows simply downloads an installer but elsewhere, you gotta have git, make, and a C compiler installed to build and
+install Xmake. If you'd like Alien::Xmake to use a pre-built or system install of Xmake, install it yourself first with
+one of the following:
 
 =over
 
@@ -201,7 +188,7 @@ first with one of the following:
 ...or if you want to do it all by hand, try...
 
     $ git clone --recursive https://github.com/xmake-io/xmake.git
-    # xmake maintains dependencies via git submodule so --recursive is required
+    # Xmake maintains dependencies via git submodule so --recursive is required
     $ cd ./xmake
     # On macOS, you may need to run: export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
     $ ./configure
@@ -223,8 +210,7 @@ The easiest way might be to use the installer but you still have options.
 
 =item Installer
 
-Download a 32- or 64-bit installer from
-https://github.com/xmake-io/xmake/releases and run it.
+Download a 32- or 64-bit installer from https://github.com/xmake-io/xmake/releases and run it.
 
 =item Via scoop
 
@@ -291,9 +277,8 @@ L<https://xmake.io/>
 
 Copyright (C) Sanko Robinson.
 
-This library is free software; you can redistribute it and/or modify it under
-the terms found in the Artistic License 2. Other copyrights, terms, and
-conditions may apply to data transmitted through this module.
+This library is free software; you can redistribute it and/or modify it under the terms found in the Artistic License
+2. Other copyrights, terms, and conditions may apply to data transmitted through this module.
 
 =head1 AUTHOR
 

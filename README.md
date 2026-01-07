@@ -1,27 +1,27 @@
 # NAME
 
-Alien::xmake - Locate, Download, or Build and Install xmake
+Alien::Xmake - Locate, Download, or Build and Install Xmake
 
 # SYNOPSIS
 
 ```perl
-use Alien::xmake;
-system Alien::xmake->exe, '--help';
-system Alien::xmake->exe, 'create -t qt.widgetapp test';
+use Alien::Xmake;
+
+system Alien::Xmake->exe, '--help';
+system Alien::Xmake->exe, qw[create -t qt.widgetapp test];
+
+system Alien::Xmake->xrepo, qw[info libpng];
 ```
 
 # DESCRIPTION
 
-xmake is a lightweight, cross-platform build utility based on Lua. It uses a
-Lua script to maintain project builds, but is driven by a dependency-free core
-program written in C. Compared with Makefiles or CMake, the configuration
-syntax is (in the opinion of the author) much more concise and intuitive. As
-such, it's friendly to novices while still maintaining the flexibly required in
-a build system. With xmake, you can focus on your project instead of the build.
+Xmake is a lightweight, cross-platform build utility based on Lua. It uses a Lua script to maintain project builds, but
+is driven by a dependency-free core program written in C. Compared with Makefiles or CMake, the configuration syntax is
+(in the opinion of the author) much more concise and intuitive. As such, it's friendly to novices while still
+maintaining the flexibly required in a build system. With Xmake, you can focus on your project instead of the build.
 
-xmake can be used to directly build source code (like with Make or Ninja), or
-it can generate project source files like CMake or Meson. It also has a
-built-in package management system to help users integrate C/C++ dependencies.
+Xmake can be used to directly build source code (like with Make or Ninja), or it can generate project source files like
+CMake or Meson. It also has a built-in package management system to help users integrate C/C++ dependencies.
 
 # Methods
 
@@ -34,25 +34,24 @@ Returns 'system' or 'shared'.
 ## `exe()`
 
 ```
-system Alien::xmake->exe;
+system Alien::Xmake->exe;
 ```
 
-Returns the full path to the xmake executable.
+Returns the full path to the Xmake executable.
 
 ## `xrepo()`
 
 ```
-system Alien::xmake->xrepo;
+system Alien::Xmake->xrepo;
 ```
 
-Returns the full path to the [xrepo](https://github.com/xmake-io/xmake-repo)
-executable.
+Returns the full path to the [xrepo](https://github.com/xmake-io/xmake-repo) executable.
 
 ## `bin_dir()`
 
 ```perl
 use Env qw[@PATH];
-unshift @PATH, Alien::xmake->bin_dir;
+unshift @PATH, Alien::Xmake->bin_dir;
 ```
 
 Returns a list of directories you should push onto your PATH.
@@ -62,18 +61,16 @@ For a 'system' install this step will not be required.
 ## `version()`
 
 ```perl
-my $ver = Alien::xmake->version;
+my $ver = Alien::Xmake->version;
 ```
 
-Returns the version of xmake installed.
+Returns the version of Xmake installed.
 
-Under a 'system' install, `xmake --version` is run once and the version number
-is cached.
+Under a 'system' install, `xmake --version` is run once and the version number is cached.
 
 # Alien::Base Helper
 
-To use xmake in your `alienfile`s, require this module and use `%{xmake}` and
-`%{xrepo}`.
+To use Xmake in your `alienfile`s, require this module and use `%{xmake}` and `%{xrepo}`.
 
 ```perl
 use alienfile;
@@ -83,13 +80,12 @@ use alienfile;
 # ...
 ```
 
-# xmake Cookbook
+# Xmake Cookbook
 
-xmake is severely underrated so I'll add more nifty things here but for now
-just a quick example.
+xmake is severely underrated so I'll add more nifty things here but for now just a quick example.
 
-You're free to create your own projects, of course, but xmake comes with the
-ability to generate an entire project for you:
+You're free to create your own projects, of course, but Xmake comes with the ability to generate an entire project for
+you:
 
 ```
 $ xmake create -P hi    # generates a basic console project in C++ and xmake.lua build script
@@ -98,21 +94,18 @@ $ xmake -y              # builds the project if required, installing defined pre
 $ xmake run             # runs the target binary which prints 'hello, world!'
 ```
 
-`xmake create` is a lot like `minil new` in that it generates a new project
-for you that's ready to build even before you change anything. It even tosses a
-`.gitignore` file in. You can generate projects in C++, Go, Objective C, Rust,
-Swift, D, Zig, Vale, Pascal, Nim, Fortran, and more. You can also generate
-boilerplate projects for simple console apps, static and shared libraries,
-macOS bundles, GUI apps based on Qt or wxWidgets, IOS apps, and more.
+`xmake create` is a lot like `minil new` in that it generates a new project for you that's ready to build even before
+you change anything. It even tosses a `.gitignore` file in. You can generate projects in C++, Go, Objective C, Rust,
+Swift, D, Zig, Vale, Pascal, Nim, Fortran, and more. You can also generate boilerplate projects for simple console
+apps, static and shared libraries, macOS bundles, GUI apps based on Qt or wxWidgets, IOS apps, and more.
 
 See `xmake create --help` for a full list.
 
 # Prerequisites
 
-Windows simply downloads an installer but elsewhere, you gotta have git, make,
-and a C compiler installed to build and install xmake. If you'd like
-Alien::xmake to use a pre-built or system install of xmake, install it yourself
-first with one of the following:
+Windows simply downloads an installer but elsewhere, you gotta have git, make, and a C compiler installed to build and
+install Xmake. If you'd like Alien::Xmake to use a pre-built or system install of Xmake, install it yourself first with
+one of the following:
 
 - Built from source
 
@@ -130,7 +123,7 @@ first with one of the following:
 
     ```
     $ git clone --recursive https://github.com/xmake-io/xmake.git
-    # xmake maintains dependencies via git submodule so --recursive is required
+    # Xmake maintains dependencies via git submodule so --recursive is required
     $ cd ./xmake
     # On macOS, you may need to run: export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
     $ ./configure
@@ -153,8 +146,7 @@ first with one of the following:
 
     - Installer
 
-        Download a 32- or 64-bit installer from
-        https://github.com/xmake-io/xmake/releases and run it.
+        Download a 32- or 64-bit installer from https://github.com/xmake-io/xmake/releases and run it.
 
     - Via scoop
 
@@ -235,9 +227,8 @@ first with one of the following:
 
 Copyright (C) Sanko Robinson.
 
-This library is free software; you can redistribute it and/or modify it under
-the terms found in the Artistic License 2. Other copyrights, terms, and
-conditions may apply to data transmitted through this module.
+This library is free software; you can redistribute it and/or modify it under the terms found in the Artistic License
+2\. Other copyrights, terms, and conditions may apply to data transmitted through this module.
 
 # AUTHOR
 

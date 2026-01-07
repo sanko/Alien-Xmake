@@ -5,15 +5,12 @@ use File::Temp    qw[tempdir];
 use Capture::Tiny qw[capture];
 my $dir = tempdir();
 #
-use Alien::xmake;
+use Alien::Xmake;
 #
-my $xmake = Alien::xmake->new;
+my $xmake = Alien::Xmake->new;
 {
     chdir $dir;
-    my ( $stdout, $stderr, $exit ) = capture {
-        system $xmake->exe,
-        qw[create --quiet --project=test_cpp --language=c++ --template=console]
-    };
+    my ( $stdout, $stderr, $exit ) = capture { system $xmake->exe, qw[create --quiet --project=test_cpp --language=c++ --template=console] };
     ok( ( -d 'test_cpp' ), 'project created' );
 
     #~ ok !$exit, 'project created';
@@ -21,7 +18,7 @@ my $xmake = Alien::xmake->new;
     diag $stderr if $exit && length $stderr;
     chdir 'test_cpp';
     subtest compile => sub {
-        my $todo = todo 'Require a working compiler';    # outside the scope of Alien::xmake
+        my $todo = todo 'Require a working compiler';    # outside the scope of Alien::Xmake
         diag 'Building project..';
         ( $stdout, $stderr, $exit ) = capture { system $xmake->exe, '--quiet' };
         ok !$exit, 'project built';

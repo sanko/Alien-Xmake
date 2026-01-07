@@ -1,6 +1,6 @@
 {
    "X_No_Archive" : "Yes",
-   "abstract" : "Locate, Download, or Build and Install xmake",
+   "abstract" : "Locate, Download, or Build and Install Xmake",
    "author" : [
       "Sanko Robinson <sanko@cpan.org>"
    ],
@@ -15,7 +15,7 @@
       "url" : "https://metacpan.org/pod/CPAN::Meta::Spec",
       "version" : 2
    },
-   "name" : "Alien-xmake",
+   "name" : "Alien-Xmake",
    "no_index" : {
       "directory" : [
          "t",
@@ -83,24 +83,24 @@
       }
    },
    "provides" : {
-      "Alien::xmake" : {
-         "file" : "lib/Alien/xmake.pm",
+      "Alien::Xmake" : {
+         "file" : "lib/Alien/Xmake.pm",
          "version" : "0.06"
       }
    },
    "release_status" : "stable",
    "resources" : {
       "bugtracker" : {
-         "web" : "https://github.com/sanko/Alien-xmake/issues"
+         "web" : "https://github.com/sanko/Alien-Xmake/issues"
       },
-      "homepage" : "https://github.com/sanko/Alien-xmake",
+      "homepage" : "https://github.com/sanko/Alien-Xmake",
       "license" : [
          "http://www.perlfoundation.org/artistic_license_2_0"
       ],
       "repository" : {
          "type" : "git",
-         "url" : "https://github.com/sanko/Alien-xmake.git",
-         "web" : "https://github.com/sanko/Alien-xmake"
+         "url" : "https://github.com/sanko/Alien-Xmake.git",
+         "web" : "https://github.com/sanko/Alien-Xmake"
       }
    },
    "version" : "0.06",

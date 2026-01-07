@@ -1,10 +1,10 @@
 use v5.40;
 use blib;
 use Test2::V0 -no_srand => 1;
-use Alien::xmake;
+use Alien::Xmake;
 use File::Temp qw[tempdir];
 #
-my $xmake = Alien::xmake->new;
+my $xmake = Alien::Xmake->new;
 diag 'Install type:  ' . $xmake->install_type;
 diag 'Xmake version: ' . $xmake->version;
 use Capture::Tiny qw[capture];

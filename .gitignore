@@ -28,7 +28,7 @@ cover_db/
 
 MYMETA.*
 
-/Alien-xmake-*
+/Alien-Xmake-*
 
 .tidyall.d
 temp
@@ -45,3 +45,4 @@ MANIFEST
 
 _build_xmake
 eg/inst.pl
+eg/xmake-inst/
