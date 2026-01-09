@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Switch xmake to plain text mode on CPAN smokers
+
 ## [0.06] - 2026-01-07
 
 ### Added

@@ -3,15 +3,14 @@ use blib;
 use Test2::V0 -no_srand => 1;
 use File::Temp    qw[tempdir];
 use Capture::Tiny qw[capture];
-my $dir = tempdir();
 #
 use Alien::Xmake;
 #
 my $xmake = Alien::Xmake->new;
+my $exe   = $xmake->exe;
+diag qx[$exe g --theme=plain] if $ENV{AUTOMATED_TESTING};
 {
-    chdir $dir;
-    diag $xmake->xrepo;
-    my ( $stdout, $stderr, $exit ) = capture { system $xmake->xrepo, 'info', 'libpng' };
+    my ( $stdout, $stderr, $exit ) = capture { system $exe, 'lua', 'private.xrepo', 'info', 'libpng' };
     diag $stdout;
     diag $stderr;
 

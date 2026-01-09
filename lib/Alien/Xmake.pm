@@ -1,6 +1,6 @@
 use v5.40;
 use experimental 'class';
-class Alien::Xmake 0.06 {
+class Alien::Xmake 0.07 {
     use File::Spec;
     use File::Basename qw(dirname);
     field $windows = $^O eq 'MSWin32';

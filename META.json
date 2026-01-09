@@ -29,6 +29,23 @@
       ]
    },
    "prereqs" : {
+      "build" : {
+         "requires" : {
+            "Exporter" : "5.57",
+            "ExtUtils::Helpers" : "0.028",
+            "ExtUtils::Install" : "0",
+            "ExtUtils::InstallPaths" : "0.002",
+            "File::Basename" : "0",
+            "File::Find" : "0",
+            "File::Path" : "0",
+            "File::Spec::Functions" : "0",
+            "Getopt::Long" : "2.36",
+            "HTTP::Tiny" : "0",
+            "JSON::PP" : "2",
+            "Path::Tiny" : "0",
+            "perl" : "v5.40.0"
+         }
+      },
       "configure" : {
          "requires" : {
             "Archive::Tar" : "0",
@@ -84,7 +101,7 @@
    "provides" : {
       "Alien::Xmake" : {
          "file" : "lib/Alien/Xmake.pm",
-         "version" : "0.06"
+         "version" : "0.07"
       }
    },
    "release_status" : "stable",
@@ -102,7 +119,7 @@
          "web" : "https://github.com/sanko/Alien-Xmake"
       }
    },
-   "version" : "0.06",
+   "version" : "0.07",
    "x_authority" : "cpan:SANKO",
    "x_ignore" : [
       ".tidyallrc",
