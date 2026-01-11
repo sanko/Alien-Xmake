@@ -30,6 +30,9 @@
    },
    "prereqs" : {
       "build" : {
+         "recommends" : {
+            "IO::Socket::SSL" : "0"
+         },
          "requires" : {
             "Exporter" : "5.57",
             "ExtUtils::Helpers" : "0.028",
@@ -101,7 +104,14 @@
    "provides" : {
       "Alien::Xmake" : {
          "file" : "lib/Alien/Xmake.pm",
-         "version" : "0.07"
+         "version" : "0.08"
+      },
+      "Alien::Xrepo" : {
+         "file" : "lib/Alien/Xrepo.pm",
+         "version" : "0.08"
+      },
+      "Alien::Xrepo::PackageInfo" : {
+         "file" : "lib/Alien/Xrepo.pm"
       }
    },
    "release_status" : "stable",
@@ -119,7 +129,7 @@
          "web" : "https://github.com/sanko/Alien-Xmake"
       }
    },
-   "version" : "0.07",
+   "version" : "0.08",
    "x_authority" : "cpan:SANKO",
    "x_ignore" : [
       ".tidyallrc",

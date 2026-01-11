@@ -31,6 +31,7 @@ on build => sub {
     requires 'JSON::PP', '2';
     requires 'Path::Tiny';
     requires 'perl', 'v5.40.0';
+    recommends 'IO::Socket::SSL';
 };
 on test => sub {
     requires 'Capture::Tiny';
