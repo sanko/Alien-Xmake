@@ -1,4 +1,9 @@
 requires 'perl', 'v5.40.0';
+requires 'Affix';
+requires 'Capture::Tiny';
+requires 'JSON::PP', '2';
+requires 'Path::Tiny';
+
 on configure => sub {
     requires 'Archive::Tar';
     requires 'CPAN::Meta';

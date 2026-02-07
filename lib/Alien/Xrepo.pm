@@ -1,249 +1,353 @@
 use v5.40;
 use feature 'class';
 no warnings 'experimental::class';
+
 class Alien::Xrepo 0.08 {
+    use Carp qw(croak);
+    use JSON::PP qw(decode_json);
     use Alien::Xmake;
-    use JSON::PP;
+    use Capture::Tiny qw(capture);
     use Path::Tiny;
-    use Config;
-    use Capture::Tiny qw[capture];
     #
     field $verbose : param //= 0;
     field $xmake = Alien::Xmake->new;
-    method blah ($msg) { return unless $verbose; say $msg; }
-    #
-    class Alien::Xrepo::PackageInfo {
-        use Path::Tiny;
-        field $includedirs : param : reader;
-        field $libfiles    : param : reader;
-        field $license     : param : reader;
-        field $linkdirs    : param : reader;
-        field $links       : param : reader;
-        field $shared      : param : reader;
-        field $static      : param : reader;
-        field $version     : param : reader;
-        field $libpath     : param : reader //= ();
-        field $bindirs     : param : reader //= [];
+    field $xrepo : param //= $xmake->xrepo;
 
-        # Helper to find a specific header inside the includedirs
-        method find_header ($filename) {
-            for my $dir (@$includedirs) {
-                my $p = path($dir)->child($filename);
-                return $p->stringify if $p->exists;
-            }
+    # ============================================================================
+    # METHODS
+    # ============================================================================
 
-            # Fallback check: sometimes xrepo returns the generic include root,
-            # and the file is in a subdir (e.g. GL/gl.h)
-            warn "Header '$filename' not found in package include directories:\n" . join( "\n", @$includedirs ) . "\n";
-            return;
+    method install ($package_name, $version_constraint = undef, %options) {
+        my $pkg_spec = $package_name;
+        $pkg_spec .= " $version_constraint" if defined $version_constraint && length $version_constraint;
+
+        # 1. Install phase
+        my @args = $self->_build_cli_options(\%options);
+        my @install_cmd = ($xrepo, 'install', '-y', @args, $pkg_spec);
+        $self->_run_command(@install_cmd);
+
+        # 2. Introspection phase (fetch)
+        my @fetch_cmd = ($xrepo, 'fetch', '--json', @args, $pkg_spec);
+        my $json_output = $self->_run_command(@fetch_cmd);
+
+        # Sanitize Output (deal with loading animations or warnings)
+        $json_output = $self->_apply_backspace_characters($json_output);
+        if ($json_output =~ /(\[.*\])/s) {
+            $json_output = $1;
         }
-        method bin_dir {@$bindirs}
 
-        method _data_printer ($ddp) {
-            {   includedirs => $includedirs,
-                libfiles    => $libfiles,
-                license     => $license,
-                linkdirs    => $linkdirs,
-                links       => $links,
-                shared      => $shared,
-                static      => $static,
-                version     => $version,
-                libpath     => $libpath,
-                bindirs     => $bindirs
-            }
+        my $meta_list = eval { decode_json($json_output) };
+        if ($@) {
+            croak "Failed to parse xrepo JSON output: $@\nRaw output:\n$json_output";
         }
-    }
-    #
-    method install ( $pkg_spec, $version //= (), %opts ) {
-        my $full_spec = defined $version && length $version ? "$pkg_spec $version" : $pkg_spec;
+        if (!$meta_list || ref $meta_list ne 'ARRAY' || !@$meta_list) {
+            croak "Failed to fetch metadata for package '$package_name'";
+        }
 
-        # Build common arguments for both install and fetch
-        my @args = $self->_build_args( \%opts );
-        say "[*] xrepo: ensuring $full_spec is installed..." if $verbose;
-
-        # Install
-        my @install_cmd = ( $xmake->exe, qw[lua private.xrepo], 'install', '-y', @args, $full_spec );
-        $self->blah("Running: @install_cmd");
-        system(@install_cmd) == 0 or die "xrepo install failed for $full_spec";
-
-        # Fetch (must use same args to get correct paths for arch/mode)
-        warn "[*] xrepo: fetching paths...\n" if $verbose;
-        my @fetch_cmd = ( $xmake->exe, qw[lua private.xrepo], 'fetch', '--json', @args, $full_spec );
-        $self->blah("Running: @fetch_cmd");
-        my ( $json_out, $json_err, $json_exit ) = capture { system @fetch_cmd };
-        die "xrepo fetch failed:\nCommand: @fetch_cmd\nError:\n$json_err" if $json_exit != 0;
-        my $data;
-        try { $data = decode_json($json_out); } catch ($e) {
-            die "Failed to decode xrepo JSON output: $e\nOutput was: $json_out"
-        };
-
-        # xrepo might return a single object or a list.
-        $self->_process_info( ( ref $data eq 'ARRAY' ) ? $data->[0] : $data );
+        return $self->_process_info($meta_list->[0]);
     }
 
-    method uninstall ( $pkg_spec, %opts ) {
-        my @args = $self->_build_args( \%opts );
-        say "[*] xrepo: uninstalling $pkg_spec..." if $verbose;
-        system $xmake->exe, qw[lua private.xrepo], 'remove', '-y', @args, $pkg_spec;
+    method uninstall ($package_name, %options) {
+        my @cmd = ($xrepo, 'remove', '-y');
+        push @cmd, $self->_build_cli_options(\%options);
+        push @cmd, $package_name;
+        $self->_run_command(@cmd);
+        return 1;
     }
 
     method search ($query) {
-        say "[*] xrepo: searching for $query..." if $verbose;
-        system $xmake->exe, qw[lua private.xrepo], 'search', $query;
+        system($xrepo, 'search', $query);
     }
 
     method clean () {
-        say '[*] xrepo: cleaning cache...' if $verbose;
-        system $xmake->exe, qw[lua private.xrepo], 'clean', '-y';
+        $self->_run_command($xrepo, 'clean', '-y');
+        return 1;
     }
-    #
-    method add_repo ( $name, $url, $branch //= () ) {
-        say "[*] xrepo: adding repo $name..." if $verbose;
-        my @cmd = ( $xmake->exe, qw[lua private.xrepo], 'add-repo', '-y', $name, $url );
+
+    method add_repo ($name, $url, $branch = undef) {
+        my @cmd = ($xrepo, 'add-repo', $name, $url);
         push @cmd, $branch if defined $branch;
-        my ( $out, $err, $exit ) = capture { system @cmd };
-        die "xrepo add-repo failed:\n$err" if $exit != 0;
+        $self->_run_command(@cmd);
         return 1;
     }
 
     method remove_repo ($name) {
-        say "[*] xrepo: removing repo $name..." if $verbose;
-        system $xmake->exe, qw[lua private.xrepo], 'remove-repo', '-y', $name;
+        $self->_run_command($xrepo, 'remove-repo', $name);
+        return 1;
     }
 
-    method update_repo ( $name //= () ) {
-        say '[*] xrepo: updating repositories...' if $verbose;
-        my @cmd = ( $xmake->exe, qw[lua private.xrepo], 'update-repo', '-y' );
+    method update_repo ($name = undef) {
+        my @cmd = ($xrepo, 'update-repo');
         push @cmd, $name if defined $name;
-        system @cmd;
+        $self->_run_command(@cmd);
+        return 1;
     }
-    #
-    method _build_args ($opts) {
+
+    # ============================================================================
+    # INTERNAL HELPERS
+    # ============================================================================
+    method _build_cli_options ($opts) {
         my @args;
-
-        # Standard xmake/xrepo flags
-        push @args, '-p', $opts->{plat} if $opts->{plat};                        # platform (iphoneos, android, etc)
-        push @args, '-a', $opts->{arch} if $opts->{arch};                        # architecture (arm64, x86_64)
-        push @args, '-m', $opts->{mode} if $opts->{mode};                        # debug/release
-        push @args, '-k', ( $opts->{kind} // 'shared' );                         # static/shared (Default to shared for FFI)
+        push @args, '-p', $opts->{plat} if $opts->{plat};
+        push @args, '-a', $opts->{arch} if $opts->{arch};
+        push @args, '-m', $opts->{mode} if $opts->{mode};
+        push @args, '-k', ($opts->{kind} // 'shared');
         push @args, '--toolchain=' . $opts->{toolchain} if $opts->{toolchain};
-
-        # Complex configs (passed as --configs='key=val,key2=val2')
-        if ( my $c = $opts->{configs} ) {
-            if ( ref $c eq 'HASH' ) {
-                my $str = join( ',', map {"$_=$c->{$_}"} sort keys %$c );
-                push @args, "--configs=$str";
+        if (defined $opts->{configs}) {
+            my $cfg = $opts->{configs};
+            if (ref $cfg eq 'HASH') {
+                $cfg = join(',', map {"$_=$cfg->{$_}"} sort keys %$cfg);
             }
-            else {
-                push @args, "--configs=$c";
-            }
+            push @args, "--configs=$cfg";
         }
-
-        # Build Includes (deps)
-        if ( my $i = $opts->{includes} ) {
-            push @args, '--includes=' . ( ref $i eq 'ARRAY' ? join( ',', @$i ) : $i );
+        if (defined $opts->{includes}) {
+            my $inc = $opts->{includes};
+            if (ref $inc eq 'ARRAY') {
+                $inc = join(',', @$inc);
+            }
+            push @args, "--includes=$inc";
         }
         return @args;
     }
 
-    method _process_info ($info) {
-        return () unless defined $info;
-        my $libfiles = $info->{libfiles}    // [];
-        my $incdirs  = $info->{includedirs} // [];
-        my $linkdirs = $info->{linkdirs}    // [];
-        my $bindirs  = $info->{bindirs}     // [];
+    method _run_command (@cmd) {
+        say "Alien::Xrepo executing: @cmd" if $verbose;
+        my ( $stdout, $stderr, @result ) = capture { system(@cmd) };
+        my $exit_code = $result[0];
 
-        # 1. Validate that we actually got files back
-        unless (@$libfiles) {
-            $self->blah('[!] xrepo returned no library files. Package might be header-only.');
-
-            # Return a generic object (likely header-only)
-            return Alien::Xrepo::PackageInfo->new(
-                includedirs => $incdirs,
-                libfiles    => [],
-                libpath     => undef,
-                linkdirs    => $linkdirs,
-                links       => $info->{links}   // [],
-                license     => $info->{license} // (),
-                shared      => $info->{shared}  // 0,
-                static      => $info->{static}  // 0,
-                version     => $info->{version} // ()
-            );
+        if ( $exit_code == -1 ) {
+            croak "Alien::Xrepo: Failed to execute command: $!\nCommand: @cmd";
+        }
+        elsif ( $exit_code & 127 ) {
+            croak sprintf "Alien::Xrepo: Command died with signal %%d, %%s coredump\nCommand: @cmd", ( $exit_code & 127 ), ( $exit_code & 128 ) ? 'with' : 'without';
         }
 
-        # 2. Heuristic to find the Runtime Library (DLL/SO/DyLib) for FFI
+        $exit_code >>= 8;
+
+        if ($verbose) {
+            print STDOUT $stdout if defined $stdout;
+            print STDERR $stderr if defined $stderr;
+        }
+        if ( $exit_code != 0 ) {
+            croak "Alien::Xrepo command failed (Exit $exit_code): @cmd\nStdout:\n$stdout\nStderr:\n$stderr";
+        }
+        return $stdout;
+    }
+
+    method _apply_backspace_characters ($str) {
+        my $result = '';
+        for my $c (split //, $str) {
+            if ($c eq "\b") {
+                substr($result, -1) = '' if length $result;
+            }
+            else {
+                $result .= $c;
+            }
+        }
+        return $result;
+    }
+
+    method _process_info ($meta) {
+        my $libfiles = $meta->{libfiles}    // [];
+        my $incdirs  = $meta->{includedirs} // [];
+        my $linkdirs = $meta->{linkdirs}    // [];
+        my $bindirs  = $meta->{bindirs}     // [];
+        my $kind     = $meta->{kind}        // 'shared';
+
         my $runtime_lib;
-        if ( $^O eq 'MSWin32' ) {
-
-            # Check if the DLL is already in libfiles (MinGW often does this)
+        if ($^O eq 'MSWin32') {
             ($runtime_lib) = grep {/\.dll$/i} @$libfiles;
-
-            # If not, we must hunt for it in the 'bin' directory sibling to the 'lib' directory.
             unless ($runtime_lib) {
                 my ($imp_lib) = grep {/\.lib$/i} @$libfiles;
                 if ($imp_lib) {
                     my $lib_path = path($imp_lib);
-                    my $basename = $lib_path->basename(qr/\.lib$/i);    # e.g., 'zlib' from 'zlib.lib'
-
-                    # Construct list of potential directories to search
-                    my @search_dirs = @$bindirs;
-
-                    # Add standard relative paths: /path/to/lib/../bin
-                    push @search_dirs, $lib_path->parent->parent->child('bin');
-                    push @search_dirs, $lib_path->parent->sibling('bin');         # Some layouts differ
-
-                    # Search for the DLL
+                    my $basename = $lib_path->basename(qr/\.lib$/i);
+                    my @search_dirs = (@$bindirs, $lib_path->parent->parent->child('bin'), $lib_path->parent->sibling('bin'));
                     for my $dir (@search_dirs) {
                         next unless -d $dir;
                         my $d = path($dir);
-
-                        # Exact match: zlib.lib -> zlib.dll
                         my $try = $d->child("$basename.dll");
-                        if ( $try->exists ) { $runtime_lib = $try->stringify; last; }
-
-                        # MSVC vs MinGW naming: libpng.lib -> libpng16.dll or png.dll
-                        # Scan directory for anything starting with the basename
+                        if ($try->exists) { $runtime_lib = $try->stringify; last; }
                         my ($fuzzy) = grep { /^$basename/i && /\.dll$/i } map { $_->basename } $d->children;
                         if ($fuzzy) { $runtime_lib = $d->child($fuzzy)->stringify; last; }
                     }
                 }
             }
         }
-        elsif ( $^O eq 'darwin' ) {
-
-            # macOS: Prefer .dylib, then .so
+        elsif ($^O eq 'darwin') {
             ($runtime_lib) = grep {/\.dylib$/i} @$libfiles;
-            ($runtime_lib) //= grep {/\.so$/i} @$libfiles;
+            $runtime_lib //= grep {/\.so$/i} @$libfiles;
         }
         else {
-            # Linux/BSD: Prefer .so, .so.x.y, .so.x
             ($runtime_lib) = grep {/\.so(\.|-|\d|$)/} @$libfiles;
         }
 
-        # Fallback and Logging
-        unless ($runtime_lib) {
-
-            # If we asked for shared but couldn't find a runtime binary, log a warning.
-            # We fall back to the first file (likely a static .a/.lib) so that
-            # XS builds might still work, even if Affix or FFI::Platypus will fail.
-            if ( $info->{shared} // 0 ) {
-                $self->blah('[!] Warning: Package is marked "shared" but no Runtime Binary (dll/so/dylib) was detected.');
-                $self->blah( '[!] Libfiles returned: ' . join( ', ', @$libfiles ) );
-            }
-            $runtime_lib = $libfiles->[0];
+        if (!$runtime_lib && @$libfiles) {
+            $runtime_lib = $libfiles->[0]; # Fallback to first file (likely static)
         }
-        $self->blah( '[*] Identified runtime library: ' . $runtime_lib ) if $runtime_lib;
+
         return Alien::Xrepo::PackageInfo->new(
             includedirs => $incdirs,
             libfiles    => $libfiles,
             libpath     => $runtime_lib,
             linkdirs    => $linkdirs,
-            links       => $info->{links}   // [],
-            license     => $info->{license} // (),
-            shared      => $info->{shared}  // 0,
-            static      => $info->{static}  // 0,
-            version     => $info->{version} // ()
+            links       => $meta->{links}    // [],
+            license     => $meta->{license},
+            shared      => $meta->{shared}   // 0,
+            static      => $meta->{static}   // 0,
+            version     => $meta->{version},
+            bindirs     => $bindirs,
         );
     }
-};
+}
+
+class Alien::Xrepo::PackageInfo {
+    use Path::Tiny;
+    field $includedirs : param : reader;
+    field $libfiles    : param : reader;
+    field $libpath     : param : reader //= undef;
+    field $linkdirs    : param : reader //= [];
+    field $links       : param : reader //= [];
+    field $license     : param : reader //= undef;
+    field $shared      : param : reader //= 0;
+    field $static      : param : reader //= 0;
+    field $version     : param : reader //= undef;
+    field $bindirs     : param : reader //= [];
+
+    method bin_dirs () { @$bindirs }
+
+    method affix ( $name, $args, $ret ) {
+        require Affix;
+        return Affix::affix( $self->libpath, $name, $args, $ret );
+    }
+
+    method find_header ($filename) {
+        for my $dir (@$includedirs) {
+            my $p = path($dir)->child($filename);
+            return $p->stringify if $p->exists;
+        }
+        return undef;
+    }
+}
 1;
+__END__
+
+=head1 NAME
+
+Alien::Xrepo - Locate, Install, and Inspect packages via xrepo
+
+=head1 SYNOPSIS
+
+    use Alien::Xrepo;
+
+    my $repo = Alien::Xrepo->new;
+
+    # Install a package
+    my $pkg = $repo->install('libpng');
+
+    # Inspect the package
+    say $pkg->version;
+    say $pkg->libpath;
+    say $pkg->find_header('png.h');
+
+=head1 DESCRIPTION
+
+C<Alien::Xrepo> is a wrapper around the C<xrepo> package manager (part of the Xmake ecosystem).
+It allows you to easily manage C/C++ dependencies from Perl.
+
+=head1 METHODS
+
+=head2 C<new( %options )>
+
+    my $repo = Alien::Xrepo->new( verbose => 1 );
+
+Supported options:
+
+=over 4
+
+=item * C<verbose> - Enable verbose output.
+
+=item * C<xrepo> - Path to the C<xrepo> executable (defaults to the one provided by L<Alien::Xmake>).
+
+=back
+
+=head2 C<install( $package, $version, %options )>
+
+Installs a package and returns an L<Alien::Xrepo::PackageInfo> object.
+
+    $repo->install('zlib', '1.2.11', kind => 'static');
+
+Options for C<install>:
+
+=over 4
+
+=item * C<plat> - Platform (e.g., 'iphoneos', 'android').
+
+=item * C<arch> - Architecture (e.g., 'arm64', 'x86_64').
+
+=item * C<mode> - Mode ('debug' or 'release').
+
+=item * C<kind> - 'shared' (default) or 'static'.
+
+=item * C<configs> - Hashref of custom build configurations.
+
+=back
+
+=head2 C<uninstall( $package, %options )>
+
+Uninstalls a package.
+
+=head2 C<search( $query )>
+
+Searches for packages.
+
+=head2 C<clean()>
+
+Cleans the xrepo cache.
+
+=head2 C<add_repo( $name, $url, $branch )>
+
+Adds a custom xrepo repository.
+
+=head2 C<remove_repo( $name )>
+
+Removes an xrepo repository.
+
+=head2 C<update_repo( $name )>
+
+Updates repositories.
+
+=head1 PACKAGE INFO METHODS
+
+The object returned by C<install> provides the following methods:
+
+=over 4
+
+=item * C<version()> - Version of the installed package.
+
+=item * C<libpath()> - Absolute path to the primary runtime library (DLL/SO/DYLIB) or static library.
+
+=item * C<affix($name, $args, $ret)> - Wrapper around L<Affix/affix>. Automatically uses C<libpath()>.
+
+    my $png_sig_cmp = $pkg->affix('png_sig_cmp', ['string', 'size_t', 'size_t'] => 'int');
+    my $is_png = $png_sig_cmp->("...", 0, 8);
+
+=item * C<includedirs()> - List of include directories.
+
+=item * C<find_header($filename)> - Returns the absolute path to a header file if found.
+
+=item * C<libfiles()> - List of all library files provided by the package.
+
+=item * C<license()> - License name.
+
+=back
+
+=head1 AUTHOR
+
+Sanko Robinson <sanko@cpan.org>
+
+=head1 LICENSE
+
+Copyright (C) Sanko Robinson.
+
+This library is free software; you can redistribute it and/or modify it under the terms found in the Artistic License 2.

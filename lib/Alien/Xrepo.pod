@@ -78,6 +78,8 @@ header files, abstracting away operating system filesystem differences.
 This eliminates the need for manual compilation steps or hard coding paths in your Perl scripts, making your FFI
 bindings or XS wrappers portable and reproducible.
 
+Check L<https://xmake.microblock.cc/> for a list of the nearly 2000 supported packages.
+
 =head1 CONSTRUCTOR
 
 =head2 C<new>

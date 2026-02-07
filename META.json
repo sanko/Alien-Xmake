@@ -90,6 +90,10 @@
       },
       "runtime" : {
          "requires" : {
+            "Affix" : "0",
+            "Capture::Tiny" : "0",
+            "JSON::PP" : "2",
+            "Path::Tiny" : "0",
             "perl" : "v5.40.0"
          }
       },

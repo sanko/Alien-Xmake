@@ -89,8 +89,8 @@ use %s;
 
     method ACTION_install ( ) {
         say 'Installing...';
-        require ExtUtils::Install;
-        ExtUtils::Install::install( { 'blib/lib' => $Config{installprivlib}, 'blib/arch' => $Config{installarchlib} }, 1, 0, 0 );
+        my %paths = $install_paths->install_map;
+        ExtUtils::Install::install( \%paths, $verbose, 0, $uninst );
     }
 
     method ACTION_clean () {
@@ -100,14 +100,20 @@ use %s;
         path('config.log')->remove;
         path('Build')->remove;
         path('_build_params')->remove;
+        path('MYMETA.json')->remove;
+        path('MYMETA.yml')->remove;
     }
 
     method ACTION_test ( ) {
         $self->ACTION_build();
         say 'Running tests...';
-        use Test::Harness;
-        my @tests = glob('t/*.t');
-        runtests(@tests) if @tests;
+        require Test::Harness;
+        local $ENV{PERL5LIB} = join( $Config{path_sep},
+            path('blib/lib')->absolute->stringify,
+            path('blib/arch')->absolute->stringify,
+            $ENV{PERL5LIB} // () );
+        my @tests = sort glob('t/*.t');
+        Test::Harness::runtests(@tests) if @tests;
     }
 
     method _copy_libs ( ) {
@@ -168,6 +174,24 @@ use %s;
                     return { install_type => 'system', version => $ver, bin => "$sys_path" };
                 }
                 say "System Xmake found ($ver) but is older than required ($target_version).";
+            }
+        }
+
+        # Try to install system xmake if requested
+        if ( $^O ne 'MSWin32' && !$force && $ENV{ALIEN_INSTALL_SYSTEM_TOOLS} ) {
+            my $sudo = '';
+            if ( $> != 0 && $self->_run_cmd('sudo -n --version >/dev/null 2>&1') ) {
+                $sudo = 'sudo';
+            }
+            say 'Attempting to install Xmake via system package manager...';
+            $self->_install_tools($sudo);
+            my $sys_path = $self->_find_system_xmake();
+            if ($sys_path) {
+                my $ver = $self->_get_xmake_version($sys_path);
+                if ( $self->_version_cmp( $ver, $target_version ) >= 0 ) {
+                    say "Found suitable system Xmake after installation: $sys_path ($ver)";
+                    return { install_type => 'system', version => $ver, bin => "$sys_path" };
+                }
             }
         }
 
@@ -444,14 +468,17 @@ use %s;
 
     method _get_host_speed ($host) {
         my $cmd;
-        if ( $^O eq 'darwin' ) {
+        if ( $^O eq 'MSWin32' ) {
+            $cmd = "ping -n 1 -w 1000 $host 2>/dev/null";
+        }
+        elsif ( $^O eq 'darwin' ) {
             $cmd = "ping -c 1 -t 1 $host 2>/dev/null";
         }
         else {
             $cmd = "ping -c 1 -W 1 $host 2>/dev/null";
         }
         my $output = `$cmd`;
-        if ( $output =~ /time=(\d+)/ ) {
+        if ( $output =~ /(?:time|Minimum|Average)?[=< ](\d+)ms/i ) {
             return $1;
         }
         return 65535;
@@ -587,18 +614,18 @@ use %s;
 
     method _install_tools ($sudo) {
         my @installers = (
-            [ 'apt --version', 'apt install -y git build-essential libreadline-dev' ],
-            [ 'dnf --version', 'dnf install -y git readline-devel bzip2 @development-tools' ],
-            [ 'yum --version', qq[yum install -y git readline-devel bzip2 && $sudo yum groupinstall -y 'Development Tools'] ],
+            [ 'apt --version', 'apt install -y git build-essential libreadline-dev xmake' ],
+            [ 'dnf --version', 'dnf install -y git readline-devel bzip2 @development-tools xmake' ],
+            [ 'yum --version', qq[yum install -y git readline-devel bzip2 xmake && $sudo yum groupinstall -y 'Development Tools'] ],
             [   'zypper --version',
-                qq[zypper --non-interactive install git readline-devel && $sudo zypper --non-interactive install -t pattern devel_C_C++]
+                qq[zypper --non-interactive install git readline-devel xmake && $sudo zypper --non-interactive install -t pattern devel_C_C++]
             ],
-            [ 'pacman -V',              'pacman -S --noconfirm --needed git base-devel ncurses readline' ],
-            [ 'emerge -V',              'emerge -atv dev-vcs/git' ],
-            [ 'pkg list-installed',     'pkg install -y git gmake' ],
-            [ 'nix-env --version',      'nix-env -i git gcc readline ncurses' ],
-            [ 'apk --version',          'apk add git gcc g++ make readline-dev ncurses-dev libc-dev linux-headers' ],
-            [ 'xbps-install --version', 'xbps-install -Sy git base-devel' ]
+            [ 'pacman -V',          'pacman -S --noconfirm --needed git base-devel ncurses readline xmake' ],
+            [ 'emerge -V',          'emerge -atv dev-vcs/git dev-util/xmake' ],
+            [ 'pkg -N',             'pkg install -y git gmake xmake-io' ],
+            [ 'nix-env --version',  'nix-env -i git gcc readline ncurses xmake' ],
+            [ 'apk --version',      'apk add git gcc g++ make readline-dev ncurses-dev libc-dev linux-headers xmake' ],
+            [ 'xbps-install -V',    'xbps-install -Sy git base-devel xmake' ]
         );
         for my $pair (@installers) {
             my ( $check, $install ) = @$pair;

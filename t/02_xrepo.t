@@ -1,22 +1,29 @@
 use v5.40;
 use Test2::V0 '!subtest', -no_srand => 1;
 use Test2::Util::Importer 'Test2::Tools::Subtest' => ( subtest_streamed => { -as => 'subtest' } );
-use lib 'lib', '../lib', 'blib/lib', '../blib/lib';
+use blib;
 use Alien::Xmake;
 use Alien::Xrepo;
 #
 ok $Alien::Xrepo::VERSION, 'Alien::Xrepo::VERSION';
 #
-my $repo  = Alien::Xrepo->new( verbose => 0 );
+my $repo  = Alien::Xrepo->new( verbose => $ENV{TEST_VERBOSE} // 0 );
 my $xmake = Alien::Xmake->new;
 my $exe   = $xmake->exe;
-diag `$exe --help`;
-diag $exe;
+diag "Using Xmake at: $exe";
 
-#~ diag `$exe update`;
-#~ xmake.exe lua private.xrepo install -y -k shared libpng
-diag `$exe lua private.xrepo install -y -k shared libpng`;
-ok my $pkg = $repo->install('libpng'), 'install libpng';
+# Try to install libpng but skip if toolchain is missing on automated systems
+my $pkg = eval { $repo->install('libpng') };
+if ($@) {
+    if ( $ENV{AUTOMATED_TESTING} || $ENV{PERL_CPAN_REPORTER_CONFIG} ) {
+        skip_all "Skipping xrepo install test: toolchain might be missing or network issues: $@";
+    }
+    else {
+        die $@;
+    }
+}
+
+ok $pkg, 'install libpng';
 skip_all 'Failed to install libpng', 3 unless $pkg;
 diag 'Found library at: ' . $pkg->libpath;
 diag 'Version: ' . $pkg->version;
