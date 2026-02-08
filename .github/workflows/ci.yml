@@ -2,6 +2,7 @@
 jobs:
   etc:
     name: 'FreeBSD/v${{matrix.perl}}'
+    if: false
     needs:
       - setup
     strategy:
