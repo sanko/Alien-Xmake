@@ -13,13 +13,13 @@ jobs:
             name: freebsd
             pkg: pkg install -y
             setup: sudo pkg install -y xmake-io git
-            version: 15.0
+            version: '15.0'
           - architecture: arm64
             host: ubuntu-latest
             name: freebsd
             pkg: pkg install -y
             setup: sudo pkg install -y xmake-io git
-            version: 15.0
+            version: '15.0'
         perl:
           - "5.40"
       max-parallel: 5
