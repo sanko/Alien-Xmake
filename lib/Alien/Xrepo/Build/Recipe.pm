@@ -15,7 +15,7 @@ our %DEF_KEYS = map { $_ => 1 } qw[
     configs includes
 ];
 #
-class Alien::Xrepo::Build::Recipe v0.9.5 {
+class Alien::Xrepo::Build::Recipe v0.9.6 {
     use JSON::PP qw[decode_json];
     use Path::Tiny;
     use Scalar::Util qw[looks_like_number];

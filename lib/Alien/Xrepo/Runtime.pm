@@ -12,7 +12,7 @@ no warnings 'experimental::class';
 # point at a xrepo.json recipe); the accessor surface (cflags/libs/.../alt)
 # follows the Alien::Base conventions.
 #
-class Alien::Xrepo::Runtime v0.9.5 {
+class Alien::Xrepo::Runtime v0.9.6 {
     use Alien::Xrepo;
     use Alien::Xrepo::Build::Recipe;
     use JSON::PP qw[decode_json];
@@ -175,7 +175,7 @@ class Alien::Xrepo::Runtime v0.9.5 {
     method package_info ( $pkg = undef ) { $self->_pkg_info($pkg) }
 };
 #
-class Alien::Xrepo::Runtime::Alt v0.9.5 {
+class Alien::Xrepo::Runtime::Alt v0.9.6 {
     field $base : param;
     field $pkg  : param;
     method package_names ()      { $base->package_names }

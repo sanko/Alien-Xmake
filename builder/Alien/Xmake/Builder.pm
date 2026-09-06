@@ -15,6 +15,9 @@ class    #
     use HTTP::Tiny;
     use Path::Tiny        qw[path cwd];
     use ExtUtils::Helpers qw[make_executable split_like_shell detildefy];
+    use Capture::Tiny     qw(capture);
+    use Symbol            qw(gensym);
+    use IPC::Open3;
 
     # Configuration
     field $target_version : param : reader //= '';    # empty means "latest release" (resolved from the GitHub API)
@@ -193,6 +196,15 @@ use %s;
         system(@args) == 0;
     }
 
+    # Portable "command exists?" check.  Runs the command via LIST-form
+    # system (through Capture::Tiny to suppress output) and returns true
+    # on exit-zero.  Unlike the old --version >/dev/null 2>&1 pattern,
+    # this never touches the shell, so paths with spaces work.
+    method _cmd_exists (@cmd) {
+        my ( undef, undef, $exit ) = capture { system @cmd };
+        return $exit == 0;
+    }
+
     # Query the GitHub releases API for the target release (latest unless a
     # --target_version was pinned). Returns the decoded release hashref, caching
     # it so a single build performs only one API call.
@@ -355,9 +367,8 @@ use %s;
     }
 
     method _get_xmake_version ($cmd) {
-        my $safe_cmd = ( $^O eq 'MSWin32' ) ? qq{"$cmd"} : "$cmd";
-        my $out      = `$safe_cmd --version`;
-        if ( $out =~ /xmake\s+v?(\d+\.\d+\.\d+)/i ) {
+        my ( $out, undef, $exit ) = capture { system $cmd, '--version' };
+        if ( $exit == 0 && $out =~ /xmake\s+v?(\d+\.\d+\.\d+)/i ) {
             return "v$1";
         }
         return 'v0.0.0';
@@ -485,8 +496,7 @@ use %s;
         # /NOADMIN: Avoid UAC prompt if possible (installs to local user path if allowed)
         # /S: Silent
         # /D: Destination directory
-        my $cmd = qq{"$outfile_str" /NOADMIN /S /D=$install_str};
-        my $ret = system($cmd);
+        my $ret = system( $outfile_str, '/NOADMIN', '/S', "/D=$install_str" );
         die "Installer failed with code $ret" if $ret != 0;
 
         # Ensure all extracted files/templates are writable (NSIS on Windows may set read-only attributes)
@@ -505,7 +515,7 @@ use %s;
         $build_dir->remove_tree;
         $build_dir->mkpath;
         my $sudo = '';
-        if ( $> != 0 && $self->_run_cmd('sudo -n --version >/dev/null 2>&1') ) {
+        if ( $> != 0 && $self->_cmd_exists('sudo', '-n', '--version') ) {
             $sudo = 'sudo';
         }
         unless ( $self->_test_tools() ) {
@@ -548,7 +558,7 @@ use %s;
         # Xmake generates GNU makefiles. We MUST use gmake.
         my $make_cmd = 'make';
         if ( $^O =~ /bsd/i || $^O eq 'dragonfly' ) {
-            if ( $self->_run_cmd('gmake --version >/dev/null 2>&1') ) {
+            if ( $self->_cmd_exists('gmake', '--version') ) {
                 $make_cmd = 'gmake';
             }
             else {
@@ -556,7 +566,7 @@ use %s;
                 die 'gmake is required on BSD systems to build Xmake.';
             }
         }
-        elsif ( $self->_run_cmd('gmake --version >/dev/null 2>&1') ) {
+        elsif ( $self->_cmd_exists('gmake', '--version') ) {
             $make_cmd = 'gmake';
         }
         if ( -f 'configure' ) {
@@ -591,7 +601,7 @@ use %s;
         }
 
         # Try curl
-        if ( $self->_run_cmd('curl --version >/dev/null 2>&1') ) {
+        if ( $self->_cmd_exists('curl', '--version') ) {
             say 'Downloading with curl...';
 
             # -L: Follow redirects, -f: Fail on error, -o: Output
@@ -602,7 +612,7 @@ use %s;
         }
 
         # Try wget
-        if ( $self->_run_cmd('wget --version >/dev/null 2>&1') ) {
+        if ( $self->_cmd_exists('wget', '--version') ) {
             say 'Downloading with wget...';
             if ( $self->_run_cmd( 'wget', '--quiet', '-O', $dest_str, $url ) ) {
                 return 1;
@@ -643,15 +653,15 @@ use %s;
 
         # GNU or BSD make
         my $found_make = 0;
-        if ( $self->_run_cmd('gmake --version >/dev/null 2>&1') ) {
+        if ( $self->_cmd_exists('gmake', '--version') ) {
             say ' - make: Found (gmake)';
             $found_make = 1;
         }
-        elsif ( $self->_run_cmd('make --version >/dev/null 2>&1') ) {
+        elsif ( $self->_cmd_exists('make', '--version') ) {
             say ' - make: Found (make - likely GNU compatible)';
             $found_make = 1;
         }
-        elsif ( $self->_run_cmd('make -V MACHINE >/dev/null 2>&1') ) {
+        elsif ( $self->_cmd_exists('make', '-V', 'MACHINE') ) {
             say ' - make: Found (make - BSD)';
 
             # If we are on BSD, this is technically 'found', but we know it won't work for Xmake.
@@ -666,7 +676,7 @@ use %s;
 
         # STRICT CHECK for BSDs
         if ( $^O =~ /bsd/i || $^O eq 'dragonfly' ) {
-            unless ( $self->_run_cmd('gmake --version >/dev/null 2>&1') ) {
+            unless ( $self->_cmd_exists('gmake', '--version') ) {
                 say ' - make: Missing gmake (Required on FreeBSD/BSD for Xmake build)';
                 $found_make = 0;
                 $ok         = 0;
@@ -683,15 +693,15 @@ use %s;
         # Compiler
         my $found_cc = 0;
         my $prog     = "#include <stdio.h>\nint main(){return 0;}";
-        my @compilers
-            = ( [ 'cc', '-xc', '-', '-o', '/dev/null' ], [ 'gcc', '-xc', '-', '-o', '/dev/null' ], [ 'clang', '-xc', '-', '-o', '/dev/null' ] );
+        my @compilers = ( [qw[cc -xc - -o /dev/null]], [qw[gcc -xc - -o /dev/null]], [qw[clang -xc - -o /dev/null]] );
         for my $cmd_ref (@compilers) {
-            my $name    = $cmd_ref->[0];
-            my $cmd_str = join( ' ', @$cmd_ref );
-            my $pid     = open( my $ph, '|-', "$cmd_str >/dev/null 2>&1" );
+            my $name = $cmd_ref->[0];
+            my $err  = gensym;
+            my $pid  = open3( my $in, my $out, $err, @$cmd_ref );
             if ($pid) {
-                print $ph $prog;
-                close $ph;
+                print $in $prog;
+                close $in;
+                waitpid( $pid, 0 );
                 if ( $? == 0 ) {
                     say " - compiler: Found ($name)";
                     $found_cc = 1;
@@ -723,10 +733,13 @@ use %s;
         );
         for my $pair (@installers) {
             my ( $check, $install ) = @$pair;
-            if ( $self->_run_cmd( $check . ' >/dev/null 2>&1' ) ) {
+            my @check_args = split /\s+/, $check;
+            if ( $self->_cmd_exists(@check_args) ) {
                 say "Detected package manager via: $check";
                 say 'Attempting to install dependencies...';
-                return $self->_run_cmd( $sudo . ' ' . $install );
+                my @install_cmd = ('/bin/sh', '-c', $sudo . ' ' . $install);
+                my ( undef, undef, $exit ) = capture { system @install_cmd };
+                return $exit == 0;
             }
         }
         return 0;

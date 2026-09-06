@@ -9,7 +9,7 @@ no warnings 'experimental::class';
 # Three property buckets mirror Alien::Build's meta_prop / install_prop / runtime_prop,
 # all serialized as plain JSON so a run can be checkpointed and resumed.
 #
-class Alien::Xrepo::Build v0.9.5 {
+class Alien::Xrepo::Build v0.9.6 {
     use Alien::Xrepo;
     use Alien::Xrepo::Build::Recipe;
     use Path::Tiny;
@@ -223,6 +223,7 @@ class Alien::Xrepo::Build v0.9.5 {
                 pkg_roots    => $recipe->pkg_roots,
                 packages     => $runtime_prop->{packages} // {},
                 errors       => $runtime_prop->{errors}   // {},
+                digest       => $self->_config_digest,
             };
             path($snapshot)->parent->mkpath if defined $snapshot;
             path($snapshot)->spew_utf8( encode_json($data) . "\n" );
@@ -243,6 +244,23 @@ class Alien::Xrepo::Build v0.9.5 {
     #
     method _version_for_pkg ($name)          { $recipe->version_for($name) }
     method _opts_for_pkg    ( $name, %opts ) { $recipe->opts_for( $name, %opts ) }
+    #
+    # A stable fingerprint of the full install configuration (packages + their
+    # resolved versions + all frozen option keys).  Concatenating every key and
+    # value into one canonical string then SHA-256 hashing it gives a digest that
+    # changes whenever the requested configuration changes — handy for caching,
+    # reproducibility checks, and identifying stale snapshots.
+    method _config_digest () {
+        require Digest::SHA;
+        my @parts;
+        for my $name ( $recipe->packages ) {
+            my $version = $recipe->version_for($name);
+            my %opts    = $recipe->opts_for( $name, %{ $install_prop->{profile} // {} } );
+            push @parts, $name, ( defined $version ? $version : '' );
+            push @parts, map { $_ . '=' . ( defined $opts{$_} ? $opts{$_} : '' ) } sort keys %opts;
+        }
+        return Digest::SHA::sha256_hex( join "\x1f", @parts );
+    }
     #
     method _probe_satisfied ( $found, $expected ) {
         return 0 unless defined $found    && length $found;
