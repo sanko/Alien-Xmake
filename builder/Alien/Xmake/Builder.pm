@@ -543,7 +543,7 @@ use %s;
         if ( $^O eq 'solaris' ) {
             my @patches = (
                 [ 'core/src/lua-cjson/lua-cjson/lua_cjson.c',                    '#include <string.h>',   "#include <string.h>\n#include <strings.h>" ],
-                [ 'core/src/tbox/tbox/src/tbox/platform/posix/ifaddrs.c',        '#include <ifaddrs.h>',  "#include <ifaddrs.h>\n#include <net/if.h>" ],
+                [ 'core/src/tbox/tbox/src/tbox/platform/posix/ifaddrs.c',        '#include <ifaddrs.h>',  "#include <ifaddrs.h>\n#include <net/if.h>\n#ifndef IFF_LOOPBACK\n#    define IFF_LOOPBACK 0x0000000008\n#endif" ],
             );
             for my $p (@patches) {
                 my ( $rel, $anchor, $replace ) = @$p;
