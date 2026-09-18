@@ -559,8 +559,8 @@ use %s;
             say "Configuring with make=$make_cmd..." if $verbose;
             my @sh = ( './configure', "--make=$make_cmd" );
             @sh = ( 'bash', @sh ) if $self->_cmd_exists( 'bash', '-c', 'true' );
-            system( @sh ) == 0 or die 'Configure failed';
-            system( $make_cmd,     '-j4' ) == 0              or die 'Make failed';
+            system(@sh) == 0                or die 'Configure failed';
+            system( $make_cmd, '-j4' ) == 0 or die 'Make failed';
             say "Installing to $installdir..." if $verbose;
             system( $make_cmd, 'install', "PREFIX=$installdir" ) == 0 or die 'Install failed';
         }

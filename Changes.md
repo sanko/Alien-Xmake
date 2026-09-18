@@ -5,6 +5,18 @@ All notable changes to Alien::Xmake will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Compiler discovery in `_test_tools` now uses `Capture::Tiny` with a temp source file instead of `open3`/`gensym`, dropping the `Symbol` and `IPC::Open3` dependencies.
+
+### Fixed
+
+- Windows on Arm uses `PROCESSOR_ARCHITEW6432` env var when selecting the installer bundle, so emulated x64 perl (read: Strawberry Perl) downloads the native ARM64 build instead of the wrong win64 one.
+- `_get_xmake_version` now warns when the downloaded binary cannot be spawned (e.g. wrong-architecture on Windows Arm) instead of silently returning `v0.0.0`.
+- `./configure` on Unix is now run through `bash` when available, fixing builds on platforms whose default `/bin/sh` lacks POSIX features (Solaris and maybe others).
+
 ## [v1.0.1] - 2026-09-08
 
 ### Fixed
