@@ -13,8 +13,7 @@ class    #
     use Path::Tiny        qw[path cwd];
     use ExtUtils::Helpers qw[make_executable split_like_shell detildefy];
     use Capture::Tiny     qw[capture];
-    use Symbol            qw[gensym];
-    use IPC::Open3;
+    use File::Temp        qw[tempfile];
 
     # Configuration
     field $target_version : param : reader //= '';    # empty means "latest release" (resolved from the GitHub API)
@@ -664,22 +663,17 @@ use %s;
         }
 
         # Compiler
-        my $found_cc  = 0;
-        my $prog      = "#include <stdio.h>\nint main(){return 0;}";
-        my @compilers = ( [qw[cc -xc - -o /dev/null]], [qw[gcc -xc - -o /dev/null]], [qw[clang -xc - -o /dev/null]] );
-        for my $cmd_ref (@compilers) {
-            my $name = $cmd_ref->[0];
-            my $err  = gensym;
-            my $pid  = open3( my $in, my $out, $err, @$cmd_ref );
-            if ($pid) {
-                print $in $prog;
-                close $in;
-                waitpid( $pid, 0 );
-                if ( $? == 0 ) {
-                    say " - compiler: Found ($name)" if $verbose;
-                    $found_cc = 1;
-                    last;
-                }
+        my $found_cc = 0;
+        my $prog     = "#include <stdio.h>\nint main(){return 0;}";
+        my ( $probe_fh, $probe_file ) = tempfile( SUFFIX => '.c', UNLINK => 1 );
+        print {$probe_fh} $prog;
+        close $probe_fh;
+        for my $cc (qw[cc gcc clang]) {
+            my ( undef, undef, $exit ) = capture { system $cc, '-xc', $probe_file, '-o', '/dev/null' };
+            if ( $exit == 0 ) {
+                say " - compiler: Found ($cc)" if $verbose;
+                $found_cc = 1;
+                last;
             }
         }
         unless ($found_cc) {

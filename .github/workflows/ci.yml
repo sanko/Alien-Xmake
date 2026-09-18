@@ -18,17 +18,17 @@ jobs:
         perl /tmp/cpanmin.pl App::cpanminus
         rm -f /tmp/cpanmin.pl
         export PATH="$(dirname "$(perl -e 'print $^X')"):$(perl -MConfig -e 'print "$Config{sitebin}:$Config{scriptdir}:"' 2>/dev/null):$PATH"
-        #~ Alien::Xmake probes `cc` first, then gcc/clang. On Solaris/OmniOS there
-        #~ is no `cc` at all and a missing first candidate makes IPC::Open3 die
-        #~ before it ever tries gcc, so point /usr/bin/cc at the real gcc.
-        gcc_path=$(perl -MFile::Find -e 'my $p; find(sub{ if (!$p && -f $_) { $p = $File::Find::name } }, "/usr/gcc"); print $p if $p' 2>/dev/null || true)
+        #~ Alien::Xmake probes `cc` first, then gcc/clang. Solaris keeps gcc in
+        #~ /usr/bin, OmniOS under /usr/gcc: point /usr/bin/cc at the real gcc
+        #~ (command -v gcc first, File::Find under /usr/gcc as a fallback).
+        gcc_path=$(command -v gcc 2>/dev/null || perl -MFile::Find -e 'my $p; find(sub{ if (!$p && -f $_) { $p = $File::Find::name } }, "/usr/gcc"); print $p if $p' 2>/dev/null || true)
         if [ -n "$gcc_path" ] && [ ! -e /usr/bin/cc ]; then ln -sf "$gcc_path" /usr/bin/cc 2>/dev/null || true; fi
         echo "cc=$(command -v cc || true) gcc=$(command -v gcc || true) make=$(command -v make || true) gmake=$(command -v gmake || true)"
         echo 'int main(){return 0;}' | cc -xc - -o /dev/null - 2>/dev/null && echo 'cc compile OK' || echo 'cc compile FAILED'
         command -v cpanm
         export XMAKE_ROOT=y
-        cpanm --notest IO::Socket::SSL || true
-        cpanm -v . || true
+        cpanm --notest IO::Socket::SSL
+        cpanm -v .
       #~ No X11 in base: install the dev libs so xmake uses the system pkg tools
       #~ instead of bootstrapping the whole X11 stack from source.
       matrix: >
@@ -56,17 +56,17 @@ jobs:
         perl /tmp/cpanmin.pl App::cpanminus
         rm -f /tmp/cpanmin.pl
         export PATH="$(dirname "$(perl -e 'print $^X')"):$(perl -MConfig -e 'print "$Config{sitebin}:$Config{scriptdir}:"' 2>/dev/null):$PATH"
-        #~ Alien::Xmake probes `cc` first, then gcc/clang. On Solaris/OmniOS there
-        #~ is no `cc` at all and a missing first candidate makes IPC::Open3 die
-        #~ before it ever tries gcc, so point /usr/bin/cc at the real gcc.
-        gcc_path=$(perl -MFile::Find -e 'my $p; find(sub{ if (!$p && -f $_) { $p = $File::Find::name } }, "/usr/gcc"); print $p if $p' 2>/dev/null || true)
+        #~ Alien::Xmake probes `cc` first, then gcc/clang. Solaris keeps gcc in
+        #~ /usr/bin, OmniOS under /usr/gcc: point /usr/bin/cc at the real gcc
+        #~ (command -v gcc first, File::Find under /usr/gcc as a fallback).
+        gcc_path=$(command -v gcc 2>/dev/null || perl -MFile::Find -e 'my $p; find(sub{ if (!$p && -f $_) { $p = $File::Find::name } }, "/usr/gcc"); print $p if $p' 2>/dev/null || true)
         if [ -n "$gcc_path" ] && [ ! -e /usr/bin/cc ]; then ln -sf "$gcc_path" /usr/bin/cc 2>/dev/null || true; fi
         echo "cc=$(command -v cc || true) gcc=$(command -v gcc || true) make=$(command -v make || true) gmake=$(command -v gmake || true)"
         echo 'int main(){return 0;}' | cc -xc - -o /dev/null - 2>/dev/null && echo 'cc compile OK' || echo 'cc compile FAILED'
         command -v cpanm
         export XMAKE_ROOT=y
-        cpanm --notest IO::Socket::SSL || true
-        cpanm -v . || true
+        cpanm --notest IO::Socket::SSL
+        cpanm -v .
       #~ OpenBSD is disabled for now: its in-VM builds are so slow they were
       #~ blocking the whole dev loop. Re-enable once the fast platforms are
       #~ fully green (prep: pkg_add gcc-11.2.0p19 g++-11.2.0p19 curl gmake git).
@@ -90,17 +90,17 @@ jobs:
         perl /tmp/cpanmin.pl App::cpanminus
         rm -f /tmp/cpanmin.pl
         export PATH="$(dirname "$(perl -e 'print $^X')"):$(perl -MConfig -e 'print "$Config{sitebin}:$Config{scriptdir}:"' 2>/dev/null):$PATH"
-        #~ Alien::Xmake probes `cc` first, then gcc/clang. On Solaris/OmniOS there
-        #~ is no `cc` at all and a missing first candidate makes IPC::Open3 die
-        #~ before it ever tries gcc, so point /usr/bin/cc at the real gcc.
-        gcc_path=$(perl -MFile::Find -e 'my $p; find(sub{ if (!$p && -f $_) { $p = $File::Find::name } }, "/usr/gcc"); print $p if $p' 2>/dev/null || true)
+        #~ Alien::Xmake probes `cc` first, then gcc/clang. Solaris keeps gcc in
+        #~ /usr/bin, OmniOS under /usr/gcc: point /usr/bin/cc at the real gcc
+        #~ (command -v gcc first, File::Find under /usr/gcc as a fallback).
+        gcc_path=$(command -v gcc 2>/dev/null || perl -MFile::Find -e 'my $p; find(sub{ if (!$p && -f $_) { $p = $File::Find::name } }, "/usr/gcc"); print $p if $p' 2>/dev/null || true)
         if [ -n "$gcc_path" ] && [ ! -e /usr/bin/cc ]; then ln -sf "$gcc_path" /usr/bin/cc 2>/dev/null || true; fi
         echo "cc=$(command -v cc || true) gcc=$(command -v gcc || true) make=$(command -v make || true) gmake=$(command -v gmake || true)"
         echo 'int main(){return 0;}' | cc -xc - -o /dev/null - 2>/dev/null && echo 'cc compile OK' || echo 'cc compile FAILED'
         command -v cpanm
         export XMAKE_ROOT=y
-        cpanm --notest IO::Socket::SSL || true
-        cpanm -v . || true
+        cpanm --notest IO::Socket::SSL
+        cpanm -v .
       matrix: >
         [
           {"platform_name":"netbsd","os":"netbsd","arch":"x86_64","toolchain":"gcc","prepare":"/usr/sbin/pkg_add perl curl gmake"},
@@ -124,17 +124,17 @@ jobs:
         perl /tmp/cpanmin.pl App::cpanminus
         rm -f /tmp/cpanmin.pl
         export PATH="$(dirname "$(perl -e 'print $^X')"):$(perl -MConfig -e 'print "$Config{sitebin}:$Config{scriptdir}:"' 2>/dev/null):$PATH"
-        #~ Alien::Xmake probes `cc` first, then gcc/clang. On Solaris/OmniOS there
-        #~ is no `cc` at all and a missing first candidate makes IPC::Open3 die
-        #~ before it ever tries gcc, so point /usr/bin/cc at the real gcc.
-        gcc_path=$(perl -MFile::Find -e 'my $p; find(sub{ if (!$p && -f $_) { $p = $File::Find::name } }, "/usr/gcc"); print $p if $p' 2>/dev/null || true)
+        #~ Alien::Xmake probes `cc` first, then gcc/clang. Solaris keeps gcc in
+        #~ /usr/bin, OmniOS under /usr/gcc: point /usr/bin/cc at the real gcc
+        #~ (command -v gcc first, File::Find under /usr/gcc as a fallback).
+        gcc_path=$(command -v gcc 2>/dev/null || perl -MFile::Find -e 'my $p; find(sub{ if (!$p && -f $_) { $p = $File::Find::name } }, "/usr/gcc"); print $p if $p' 2>/dev/null || true)
         if [ -n "$gcc_path" ] && [ ! -e /usr/bin/cc ]; then ln -sf "$gcc_path" /usr/bin/cc 2>/dev/null || true; fi
         echo "cc=$(command -v cc || true) gcc=$(command -v gcc || true) make=$(command -v make || true) gmake=$(command -v gmake || true)"
         echo 'int main(){return 0;}' | cc -xc - -o /dev/null - 2>/dev/null && echo 'cc compile OK' || echo 'cc compile FAILED'
         command -v cpanm
         export XMAKE_ROOT=y
-        cpanm --notest IO::Socket::SSL || true
-        cpanm -v . || true
+        cpanm --notest IO::Socket::SSL
+        cpanm -v .
       matrix: >
         [
           {"platform_name":"dragonflybsd","os":"dragonflybsd","arch":"x86_64","toolchain":"gcc","perl_version":"5.40.5","prepare":"pkg update && pkg upgrade -y && pkg install -y perl5 gcc curl gmake libunistring"}
@@ -157,17 +157,17 @@ jobs:
         perl /tmp/cpanmin.pl App::cpanminus
         rm -f /tmp/cpanmin.pl
         export PATH="$(dirname "$(perl -e 'print $^X')"):$(perl -MConfig -e 'print "$Config{sitebin}:$Config{scriptdir}:"' 2>/dev/null):$PATH"
-        #~ Alien::Xmake probes `cc` first, then gcc/clang. On Solaris/OmniOS there
-        #~ is no `cc` at all and a missing first candidate makes IPC::Open3 die
-        #~ before it ever tries gcc, so point /usr/bin/cc at the real gcc.
-        gcc_path=$(perl -MFile::Find -e 'my $p; find(sub{ if (!$p && -f $_) { $p = $File::Find::name } }, "/usr/gcc"); print $p if $p' 2>/dev/null || true)
+        #~ Alien::Xmake probes `cc` first, then gcc/clang. Solaris keeps gcc in
+        #~ /usr/bin, OmniOS under /usr/gcc: point /usr/bin/cc at the real gcc
+        #~ (command -v gcc first, File::Find under /usr/gcc as a fallback).
+        gcc_path=$(command -v gcc 2>/dev/null || perl -MFile::Find -e 'my $p; find(sub{ if (!$p && -f $_) { $p = $File::Find::name } }, "/usr/gcc"); print $p if $p' 2>/dev/null || true)
         if [ -n "$gcc_path" ] && [ ! -e /usr/bin/cc ]; then ln -sf "$gcc_path" /usr/bin/cc 2>/dev/null || true; fi
         echo "cc=$(command -v cc || true) gcc=$(command -v gcc || true) make=$(command -v make || true) gmake=$(command -v gmake || true)"
         echo 'int main(){return 0;}' | cc -xc - -o /dev/null - 2>/dev/null && echo 'cc compile OK' || echo 'cc compile FAILED'
         command -v cpanm
         export XMAKE_ROOT=y
-        cpanm --notest IO::Socket::SSL || true
-        cpanm -v . || true
+        cpanm --notest IO::Socket::SSL
+        cpanm -v .
       matrix: >
         [
           {"platform_name":"solaris","os":"solaris","arch":"x86_64","toolchain":"gcc","perl_version":"5.40.5","prepare":"pkg install -v --accept perl-538 gcc developer/build/make"}
@@ -190,17 +190,17 @@ jobs:
         perl /tmp/cpanmin.pl App::cpanminus
         rm -f /tmp/cpanmin.pl
         export PATH="$(dirname "$(perl -e 'print $^X')"):$(perl -MConfig -e 'print "$Config{sitebin}:$Config{scriptdir}:"' 2>/dev/null):$PATH"
-        #~ Alien::Xmake probes `cc` first, then gcc/clang. On Solaris/OmniOS there
-        #~ is no `cc` at all and a missing first candidate makes IPC::Open3 die
-        #~ before it ever tries gcc, so point /usr/bin/cc at the real gcc.
-        gcc_path=$(perl -MFile::Find -e 'my $p; find(sub{ if (!$p && -f $_) { $p = $File::Find::name } }, "/usr/gcc"); print $p if $p' 2>/dev/null || true)
+        #~ Alien::Xmake probes `cc` first, then gcc/clang. Solaris keeps gcc in
+        #~ /usr/bin, OmniOS under /usr/gcc: point /usr/bin/cc at the real gcc
+        #~ (command -v gcc first, File::Find under /usr/gcc as a fallback).
+        gcc_path=$(command -v gcc 2>/dev/null || perl -MFile::Find -e 'my $p; find(sub{ if (!$p && -f $_) { $p = $File::Find::name } }, "/usr/gcc"); print $p if $p' 2>/dev/null || true)
         if [ -n "$gcc_path" ] && [ ! -e /usr/bin/cc ]; then ln -sf "$gcc_path" /usr/bin/cc 2>/dev/null || true; fi
         echo "cc=$(command -v cc || true) gcc=$(command -v gcc || true) make=$(command -v make || true) gmake=$(command -v gmake || true)"
         echo 'int main(){return 0;}' | cc -xc - -o /dev/null - 2>/dev/null && echo 'cc compile OK' || echo 'cc compile FAILED'
         command -v cpanm
         export XMAKE_ROOT=y
-        cpanm --notest IO::Socket::SSL || true
-        cpanm -v . || true
+        cpanm --notest IO::Socket::SSL
+        cpanm -v .
       matrix: >
         [
           {"platform_name":"omnios","os":"omnios","arch":"x86_64","toolchain":"gcc","perl_version":"5.40.5","prepare":"pkg install -v --accept perl build-essential"}
