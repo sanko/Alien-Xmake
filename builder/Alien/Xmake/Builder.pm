@@ -563,6 +563,16 @@ use %s;
                     '#include <netinet/in.h>',
                     "#include <netinet/in.h>\n#ifndef IPV6_V6ONLY\n#    define IPV6_V6ONLY 26\n#endif",
                 ],
+                [
+                    'core/src/tbox/tbox/src/tbox/platform/posix/time.c',
+                    "    struct timezone ttz = {0};\n    if (gettimeofday(&ttv, &ttz)) return tb_false;",
+                    '    if (gettimeofday(&ttv, tb_null)) return tb_false;',
+                ],
+                [
+                    'core/src/tbox/tbox/src/tbox/platform/posix/time.c',
+                    "        tz->tz_minuteswest = ttz.tz_minuteswest;\n        tz->tz_dsttime = ttz.tz_dsttime;",
+                    "        tz->tz_minuteswest = 0;\n        tz->tz_dsttime = 0;",
+                ],
             );
             for my $p (@patches) {
                 my ( $rel, $anchor, $replace ) = @$p;
