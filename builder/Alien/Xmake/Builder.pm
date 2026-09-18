@@ -536,10 +536,11 @@ use %s;
         say 'Extracting source bundle...' if $verbose;
         $self->_run_cmd( 'sh', $outfile, '--noexec', '--quiet', '--target', $build_dir ) or die 'Failed to extract .run file';
         #~ Solaris-family libc differs from glibc: <string.h> lacks strncasecmp,
-        #~ <ifaddrs.h> does not drag in <net/if.h>, and there is no execvpe. The
-        #~ bundled lua-cjson/tbox only compiled on Linux/BSD by accident; modern
-        #~ gcc (e.g. OmniOS's gcc 15) turns the missing declarations into hard
-        #~ errors, so patch the extracted sources before the strict build.
+        #~ <ifaddrs.h> does not drag in <net/if.h>, there is no execvpe, and
+        #~ <netinet/in.h> lacks IPV6_V6ONLY. The bundled lua-cjson/tbox only
+        #~ compiled on Linux/BSD by accident; modern gcc (e.g. OmniOS's gcc 15)
+        #~ turns the missing declarations into hard errors, so patch the
+        #~ extracted sources before the strict build.
         if ( $^O eq 'solaris' ) {
             my @patches = (
                 [
@@ -556,6 +557,11 @@ use %s;
                     'core/src/tbox/tbox/src/tbox/platform/posix/process.c',
                     '            execvpe(pathname, (tb_char_t* const*)argv, (tb_char_t* const*)envp);',
                     qq{            if (envp)\n            {\n                tb_char_t const* env = tb_null;\n                while ((env = *envp++))\n                {\n                    tb_char_t const* p = tb_strchr(env, '=');\n                    if (p)\n                    {\n                        tb_char_t const* values = p + 1;\n                        tb_char_t name[256];\n                        tb_size_t size = tb_min(p - env, sizeof(name) - 1);\n                        tb_strncpy(name, env, size);\n                        name[size] = '\\0';\n                        tb_environment_set(name, values);\n                    }\n                }\n            }\n            execvp(pathname, (tb_char_t* const*)argv);},
+                ],
+                [
+                    'core/src/tbox/tbox/src/tbox/platform/posix/socket.c',
+                    '#include <netinet/in.h>',
+                    "#include <netinet/in.h>\n#ifndef IPV6_V6ONLY\n#    define IPV6_V6ONLY 26\n#endif",
                 ],
             );
             for my $p (@patches) {
