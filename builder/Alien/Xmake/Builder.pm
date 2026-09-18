@@ -535,16 +535,24 @@ use %s;
         $self->_verify_download( $outfile, $asset );
         say 'Extracting source bundle...' if $verbose;
         $self->_run_cmd( 'sh', $outfile, '--noexec', '--quiet', '--target', $build_dir ) or die 'Failed to extract .run file';
-        #~ Solaris-family <string.h> does not declare strncasecmp, but the
-        #~ bundled lua-cjson only includes it; modern gcc (e.g. OmniOS's gcc 15)
-        #~ rejects that as an implicit declaration error. Inject <strings.h> so
-        #~ the strict build passes there too.
+        #~ Solaris-family libc differs from glibc: <string.h> lacks strncasecmp and
+        #~ <ifaddrs.h> does not drag in <net/if.h> the way glibc's does, so the
+        #~ bundled lua-cjson and tbox only built by accident on Linux/BSD. Modern
+        #~ gcc (e.g. OmniOS's gcc 15) turns the missing declarations into hard
+        #~ errors, so inject the missing includes for strict Solaris builds.
         if ( $^O eq 'solaris' ) {
-            my $cjson = $build_dir->child('core/src/lua-cjson/lua-cjson/lua_cjson.c');
-            if ( $cjson->exists ) {
-                my $text = $cjson->slurp_utf8;
-                $text =~ s/#include <string\.h>/#include <string.h>\n#include <strings.h>/;
-                $cjson->spew_utf8($text);
+            my @patches = (
+                [ 'core/src/lua-cjson/lua-cjson/lua_cjson.c',                    '#include <string.h>',   "#include <string.h>\n#include <strings.h>" ],
+                [ 'core/src/tbox/tbox/src/tbox/platform/posix/ifaddrs.c',        '#include <ifaddrs.h>',  "#include <ifaddrs.h>\n#include <net/if.h>" ],
+            );
+            for my $p (@patches) {
+                my ( $rel, $anchor, $replace ) = @$p;
+                my $file = $build_dir->child($rel);
+                next unless $file->exists;
+                my $text = $file->slurp_utf8;
+                next unless $text =~ /^\Q$anchor\E$/m;
+                $text =~ s/^\Q$anchor\E$/$replace/m;
+                $file->spew_utf8($text);
             }
         }
         my $cwd = cwd();
