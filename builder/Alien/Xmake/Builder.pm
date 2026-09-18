@@ -535,6 +535,18 @@ use %s;
         $self->_verify_download( $outfile, $asset );
         say 'Extracting source bundle...' if $verbose;
         $self->_run_cmd( 'sh', $outfile, '--noexec', '--quiet', '--target', $build_dir ) or die 'Failed to extract .run file';
+        #~ Solaris-family <string.h> does not declare strncasecmp, but the
+        #~ bundled lua-cjson only includes it; modern gcc (e.g. OmniOS's gcc 15)
+        #~ rejects that as an implicit declaration error. Inject <strings.h> so
+        #~ the strict build passes there too.
+        if ( $^O eq 'solaris' ) {
+            my $cjson = $build_dir->child('core/src/lua-cjson/lua-cjson/lua_cjson.c');
+            if ( $cjson->exists ) {
+                my $text = $cjson->slurp_utf8;
+                $text =~ s/#include <string\.h>/#include <string.h>\n#include <strings.h>/;
+                $cjson->spew_utf8($text);
+            }
+        }
         my $cwd = cwd();
         chdir $build_dir or die 'Cannot chdir to build dir';
         say 'Building Xmake...' if $verbose;
