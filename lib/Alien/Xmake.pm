@@ -130,13 +130,30 @@ class Alien::Xmake v1.0.2 {
     # Stream a task to the terminal (builds, runs, installs ...) and return success.
     method _run ( $action, @args ) {
         my @cmd = $self->_cmd( $action, @args );
-        return system(@cmd) == 0;
+        return _spawn(@cmd) == 0;
     }
 
     # Run a task capturing output; returns ($out, $err, $exit).
     method _capture ( $action, @args ) {
         my @cmd = $self->_cmd( $action, @args );
-        return capture { system @cmd };
+        return capture { _spawn(@cmd) };
+    }
+
+    # system(), minus the phantom warning Perl prints on MSWin32 when a child
+    # has *run* and exited nonzero: the process did spawn (its exit code in $?
+    # is the real one, and $! stays set to 0), so the "Can't spawn ..." line is
+    # noise. A genuine spawn failure sets $!, and that still warns normally.
+    sub _spawn (@args) {
+        return system(@args) if $^O ne 'MSWin32';
+        local $! = 0;
+        my @ghost;
+        local $SIG{__WARN__} = sub {
+            if ( $_[0] =~ /^Can't spawn /m ) { push @ghost, $_[0] }
+            else { warn $_[0] }
+        };
+        my $st = system(@args);
+        warn( @ghost ) if @ghost && ( $! || $st == -1 );
+        return $st;
     }
 
     # Slurp the extra trailing arguments out of %opts.
