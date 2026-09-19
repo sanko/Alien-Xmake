@@ -36,39 +36,6 @@ jobs:
           {"platform_name":"freebsd","os":"freebsd","arch":"x86_64","toolchain":"clang","prepare":"pkg install -y perl5 llvm libX11 libxcb libXext libXfixes libXcursor libXrandr libXi libXrender libXScrnSaver libxkbcommon wayland xorgproto pkgconf curl gmake"}
         ]
 
-  openbsd:
-    name: OpenBSD
-    uses: sanko/workflow-testing/.github/workflows/run-vm.yml@main
-    secrets: inherit
-    with:
-      os_version: '7.8'
-      task: |
-        perl -V
-        #~ Bootstrap cpanm via a file download, never `curl | perl`: some remote
-        #~ sh's run under pipefail, and curl's EPIPE (23) after a clean pipe
-        #~ install aborts the whole run even though it succeeded. cpanm lands in
-        #~ the active perl's sitebin/scriptdir, which is not on PATH everywhere
-        #~ (Solaris/OmniOS site bin), so re-export those dirs first.
-        curl -fsSL https://cpanmin.us -o /tmp/cpanmin.pl
-        perl /tmp/cpanmin.pl App::cpanminus
-        rm -f /tmp/cpanmin.pl
-        export PATH="$(dirname "$(perl -e 'print $^X')"):$(perl -MConfig -e 'print "$Config{sitebin}:$Config{scriptdir}:"' 2>/dev/null):$PATH"
-        #~ Alien::Xmake probes `cc` first, then gcc/clang: point /usr/bin/cc at
-        #~ the real gcc when there is no /usr/bin/cc.
-        gcc_path=$(command -v gcc 2>/dev/null || true)
-        if [ -n "$gcc_path" ] && [ ! -e /usr/bin/cc ]; then ln -sf "$gcc_path" /usr/bin/cc 2>/dev/null || true; fi
-        echo "cc=$(command -v cc || true) gcc=$(command -v gcc || true) make=$(command -v make || true) gmake=$(command -v gmake || true)"
-        echo 'int main(){return 0;}' | cc -xc - -o /dev/null - 2>/dev/null && echo 'cc compile OK' || echo 'cc compile FAILED'
-        command -v cpanm
-        export XMAKE_ROOT=y
-        cpanm --notest IO::Socket::SSL
-        cpanm -v .
-      #~ OpenBSD is disabled for now: its in-VM builds are so slow they were
-      #~ blocking the whole dev loop. Re-enable once the fast platforms are
-      #~ fully green (prep: pkg_add gcc-11.2.0p19 g++-11.2.0p19 curl gmake git).
-      matrix: >
-        []
-
   netbsd:
     name: NetBSD
     uses: sanko/workflow-testing/.github/workflows/run-vm.yml@main
