@@ -124,16 +124,7 @@ class Alien::Xmake v1.0.2 {
         unshift @args, '-F', $file if defined $file && length $file;
         my @cmd = ( $self->exe, $action, @args );
         $self->blah("Running: @cmd");
-        $self->_trace(@cmd);
         @cmd;
-    }
-
-    # Emit the command to the terminal before it runs. Silent for normal users; visible on CPAN
-    # smoke hosts (AUTOMATED_TESTING/NONINTERACTIVE_TESTING are set there) or when explicitly
-    # enabled via ALIEN_XMAKE_TRACE, so a failing run reports the exact argv.
-    method _trace (@cmd) {
-        return unless $ENV{ALIEN_XMAKE_TRACE} || $ENV{AUTOMATED_TESTING} || $ENV{NONINTERACTIVE_TESTING};
-        print STDERR "Alien::Xmake: running: @cmd\n";
     }
 
     # Stream a task to the terminal (builds, runs, installs ...) and return success.
@@ -220,7 +211,46 @@ class Alien::Xmake v1.0.2 {
         push @args, '--import=' . $opts{import} if $opts{import};
         push @args, '-o', $opts{builddir} if $opts{builddir};
         push @args, $self->_extra_args( \%opts );
-        $self->_run( 'config', @args );
+        return 1 if $self->_run( 'config', @args );
+
+        # The first attempt found no usable toolchain (e.g. bare Strawberry Perl
+        # on Windows, where xmake's windows platform has no gcc/cc toolchain).
+        # Retry once, pinning whatever C compiler is reachable on PATH, unless
+        # the caller already asked for a specific one.
+        return 0 if $opts{toolchain};
+        my $compiler = _c_compiler_on_path();
+        return 0 unless $compiler;
+        $self->_hint("config (-m $opts{mode}) failed; retrying with --toolchain=$compiler");
+        $self->_run( 'config', @args, '--toolchain=' . $compiler );
+    }
+
+    # The first config attempt found no usable toolchain; say so and retry.
+    method _hint ($msg) {
+        print STDERR "Alien::Xmake: $msg\n";
+    }
+
+    # First C compiler actually present on PATH; returns the xmake toolchain name.
+    sub _c_compiler_on_path () {
+        state $tc = do {
+            my $windows = $^O eq 'MSWin32';
+            my $sep     = $windows ? ';' : ':';
+            my @dirs    = split /$sep/, ( $ENV{PATH} // '' );
+            my @wanted  = ( [ 'gcc' => qw[gcc cc] ], [ 'clang' => 'clang' ], [ 'clang-cl' => 'clang-cl' ] );
+            my $hit;
+            for my $dir (@dirs) {
+                for my $ext ( '', $windows ? ( '.exe', '.bat', '.cmd' ) : () ) {
+                    for my $pair (@wanted) {
+                        my ( $toolchain, @bins ) = @$pair;
+                        next unless grep { -f File::Spec->catfile( $dir, $_ . $ext ) } @bins;
+                        $hit = $toolchain;
+                        last;
+                    }
+                    last if $hit;
+                }
+                last if $hit;
+            }
+            $hit;
+        };
     }
 
     method global (%opts) {
