@@ -124,7 +124,16 @@ class Alien::Xmake v1.0.2 {
         unshift @args, '-F', $file if defined $file && length $file;
         my @cmd = ( $self->exe, $action, @args );
         $self->blah("Running: @cmd");
+        $self->_trace(@cmd);
         @cmd;
+    }
+
+    # Emit the command to the terminal before it runs. Silent for normal users; visible on CPAN
+    # smoke hosts (AUTOMATED_TESTING/NONINTERACTIVE_TESTING are set there) or when explicitly
+    # enabled via ALIEN_XMAKE_TRACE, so a failing run reports the exact argv.
+    method _trace (@cmd) {
+        return unless $ENV{ALIEN_XMAKE_TRACE} || $ENV{AUTOMATED_TESTING} || $ENV{NONINTERACTIVE_TESTING};
+        print STDERR "Alien::Xmake: running: @cmd\n";
     }
 
     # Stream a task to the terminal (builds, runs, installs ...) and return success.

@@ -222,6 +222,7 @@ jobs:
       matrix: |
         [
           {"platform_name":"windows","os":"windows-latest","arch":"x86_64","toolchain":"gcc","prepare":"choco install strawberryperl"},
+          {"platform_name":"windows","os":"windows-latest","arch":"x86_64","toolchain":"gcc","variant":"bare","prepare":"choco install strawberryperl; for d in '/c/Program Files/Microsoft Visual Studio/'*; do [ -d \"$d\" ] && mv \"$d\" \"$d.disabled\" || true; done; w='/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe'; [ -f \"$w\" ] && mv \"$w\" \"$w.disabled\" || true; reg delete 'HKLM\\SOFTWARE\\Microsoft\\VisualStudio\\SxS\\VS7' /f >/dev/null 2>&1 || true; reg delete 'HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\VisualStudio\\SxS\\VS7' /f >/dev/null 2>&1 || true; echo 'Post-scrub Visual Studio roots:'; ls -1 '/c/Program Files/Microsoft Visual Studio/' 2>/dev/null || echo 'no VS dir'"},
           {"platform_name":"windows","os":"windows-latest","arch":"x86_64","toolchain":"clang","prepare":"choco install llvm strawberryperl"},
           {"platform_name":"windows-arm","os":"windows-11-arm","arch":"aarch64","toolchain":"gcc","prepare":"choco install make -y; curl -sL -o /c/strawberry.zip https://github.com/StrawberryPerl/Perl-Dist-Strawberry/releases/download/SP_54051_64bit/strawberry-perl-5.40.5.1-64bit-portable.zip && rm -rf /c/Strawberry; powershell -NoProfile -Command Expand-Archive -Path C:/strawberry.zip -DestinationPath C:/Strawberry -Force -ErrorAction Stop; rm -f /c/strawberry.zip && ln -sf /c/Strawberry/c/bin/gcc.exe /c/Strawberry/c/bin/cc.exe"}
         ]
