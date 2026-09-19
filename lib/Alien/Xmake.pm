@@ -149,10 +149,10 @@ class Alien::Xmake v1.0.2 {
         my @ghost;
         local $SIG{__WARN__} = sub {
             if ( $_[0] =~ /^Can't spawn /m ) { push @ghost, $_[0] }
-            else { warn $_[0] }
+            else                             { warn $_[0] }
         };
         my $st = system(@args);
-        warn( @ghost ) if @ghost && ( $! || $st == -1 );
+        warn(@ghost) if @ghost && ( $! || $st == -1 );
         return $st;
     }
 
