@@ -116,7 +116,7 @@
          "version" : "v1.0.3"
       }
    },
-   "release_status" : "testing",
+   "release_status" : "stable",
    "resources" : {
       "bugtracker" : {
          "web" : "https://github.com/sanko/Alien-Xmake/issues"
