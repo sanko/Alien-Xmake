@@ -3,7 +3,7 @@ use experimental 'class';
 use builtin 'is_bool';
 no warnings 'experimental::builtin';
 #
-class Alien::Xmake v1.0.2 {
+class Alien::Xmake v1.0.3 {
     use File::Spec;
     use File::Basename qw[dirname];
     use File::Temp     qw[tempdir];
@@ -242,9 +242,7 @@ class Alien::Xmake v1.0.2 {
     }
 
     # The first config attempt found no usable toolchain; say so and retry.
-    method _hint ($msg) {
-        print STDERR "Alien::Xmake: $msg\n";
-    }
+    method _hint ($msg) { print STDERR "Alien::Xmake: $msg\n" if $verbose }
 
     # First C compiler actually present on PATH; returns the xmake toolchain name.
     sub _c_compiler_on_path () {

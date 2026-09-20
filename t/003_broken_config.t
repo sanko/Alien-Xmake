@@ -39,7 +39,11 @@ subtest 'never-resolvable config fails cleanly without phantom warnings' => sub 
     is phantom_count($err), 0, "no phantom Can't spawn lines in the streamed path";
     my $compiler = Alien::Xmake::_c_compiler_on_path();
     if ( defined $compiler ) {
-        like $err, qr[retrying with --toolchain], "config was retried once with --toolchain=($compiler)";
+        unlike $err, qr[retrying with --toolchain], 'retry hint stays quiet unless verbose';
+        my $loud = Alien::Xmake->new( verbose => 1 );
+        my ( $l_out, $l_err ) = capture { $loud->configure( mode => 'debug' ) };
+        like $l_err, qr[retrying with --toolchain], "verbose: retried once with --toolchain=($compiler)";
+        is phantom_count($l_err), 0, 'the verbose path also stays phantom-free';
     }
     else {
         ok 1, 'no compiler on PATH; the retry step is skipped by design';
