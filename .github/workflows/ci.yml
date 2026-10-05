@@ -143,7 +143,9 @@ jobs:
           {"platform_name":"ubuntu","os":"ubuntu-latest","arch":"x86_64","toolchain":"gcc","perl_version":"5.42.3","configure":"-Duselongdouble","variant":"longdoubles"},
           {"platform_name":"ubuntu-arm","os":"ubuntu-24.04-arm","arch":"aarch64","toolchain":"gcc","perl_version":"5.40.5"},
           {"platform_name":"ubuntu","os":"ubuntu-latest","arch":"x86_64","toolchain":"clang","perl_version":"5.40.5"},
-          {"platform_name":"ubuntu-arm","os":"ubuntu-24.04-arm","arch":"aarch64","toolchain":"clang","perl_version":"5.40.5"}
+          {"platform_name":"ubuntu-arm","os":"ubuntu-24.04-arm","arch":"aarch64","toolchain":"clang","perl_version":"5.40.5"},
+          {"platform_name":"ubuntu",    "os":"ubuntu-latest",   "arch":"x86_64", "toolchain":"gcc",  "perl_version":"5.40.5","name":"system xmake (upstream install)","variant":"system-xmake","prepare":"curl -fsSL https://xmake.io/shget.text -o /tmp/xmake-get.sh && bash /tmp/xmake-get.sh && rm -f /tmp/xmake-get.sh && echo XMAKE_SETUP=upstream >> \"$GITHUB_ENV\" && echo \"$HOME/.local/bin\" >> \"$GITHUB_PATH\""},
+          {"platform_name":"ubuntu","os":"ubuntu-latest","arch":"x86_64","toolchain":"gcc","perl_version":"5.40.5","name":"system xmake (distro package)","variant":"system-xmake-apt","prepare":"sudo apt-get update -qq && sudo apt-get install -y -qq xmake && echo XMAKE_SETUP=apt >> \"$GITHUB_ENV\""}
         ]
       task: |
         perl -V
@@ -153,65 +155,6 @@ jobs:
         curl -L https://cpanmin.us | perl - App::cpanminus
         command -v cpanm
         cpanm -v .
-
-  linux-system-xmake:
-    name: Linux (system xmake)
-    secrets: inherit
-    uses: sanko/workflow-testing/.github/workflows/run-direct.yml@main
-    with:
-      #~ Deliberately the same os/arch/toolchain/perl as the plain ubuntu gcc
-      #~ entry: that perl-dist cache key is already warm from it, so this job
-      #~ reuses the built perl instead of rebuilding it. The perl version is
-      #~ not optional -- the runner's own perl is below the dist's v5.40.0 floor.
-      matrix: |
-        [
-          {"platform_name":"ubuntu","os":"ubuntu-latest","arch":"x86_64","toolchain":"gcc","perl_version":"5.40.5","variant":"system-xmake"}
-        ]
-      task: |
-        perl -V
-        curl -L https://cpanmin.us | perl - App::cpanminus
-        command -v cpanm
-        #~ This job exists to cover the `install_type => 'system'` branch of the
-        #~ builder: a usable xmake is already on PATH before the dist is built,
-        #~ so Alien-Xmake must adopt it and ship none of its own.
-        #~
-        #~ NOT `apt install xmake`, which cannot do the job: ubuntu ships 2.8.7
-        #~ (noble) / 3.0.7 (resolute) and the builder's floor is v3.1.1, so an apt
-        #~ copy is found and then rejected, the build silently falls back to a
-        #~ private install, and the job goes green without ever touching the code
-        #~ path it exists to test. Upstream's installer puts the current release
-        #~ in ~/.local, which is what a user following our README ends up with.
-        curl -fsSL https://xmake.io/shget.text -o /tmp/xmake-get.sh
-        bash /tmp/xmake-get.sh
-        rm -f /tmp/xmake-get.sh
-        export PATH="$HOME/.local/bin:$PATH"
-        command -v xmake
-        #~ Check the floor here rather than only at the end: a stale or too-old
-        #~ system xmake then fails as "cannot be used" instead of surfacing much
-        #~ later as an unexplained private-install fallback. Same regex and
-        #~ compare the builder itself uses (_get_xmake_version/_version_cmp).
-        perl -e '
-          my $out = qx[xmake --version];
-          my ($v) = $out =~ /xmake\s+v?(\d+\.\d+\.\d+)/i or die "cannot parse a version out of: $out";
-          require version;
-          my ($min, $got) = (version->parse("3.1.1"), version->parse($v));
-          die "system xmake v$v is below the v$min floor; it would be ignored\n" if $got < $min;
-          print "system xmake v$v clears the v$min floor\n";
-        '
-        cpanm -v .
-        #~ The suite above passes either way: it drives whichever xmake the
-        #~ install resolved, so a builder that quietly reverted to bundling its
-        #~ own copy would still be green. Assert the resolution directly.
-        perl -MAlien::Xmake -e '
-          my $x = Alien::Xmake->new;
-          my $type = $x->install_type // "(undef)";
-          die "install_type is $type, expected system -- the builder did not adopt the system xmake\n"
-              unless $type eq "system";
-          my $exe = $x->exe;
-          die "exe is $exe, expected the ~/.local/bin one\n"
-              unless index($exe, "$ENV{HOME}/.local/bin/") == 0;
-          print "OK: install_type=$type exe=$exe version=" . $x->version . "\n";
-        '
 
   macos:
     name: macOS
@@ -238,7 +181,6 @@ jobs:
     name: Summary
     needs:
       - linux
-      - linux-system-xmake
       - macos
       - windows
     uses: sanko/workflow-testing/.github/workflows/results-summary.yml@main
