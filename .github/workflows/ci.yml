@@ -143,7 +143,9 @@ jobs:
           {"platform_name":"ubuntu","os":"ubuntu-latest","arch":"x86_64","toolchain":"gcc","perl_version":"5.42.3","configure":"-Duselongdouble","variant":"longdoubles"},
           {"platform_name":"ubuntu-arm","os":"ubuntu-24.04-arm","arch":"aarch64","toolchain":"gcc","perl_version":"5.40.5"},
           {"platform_name":"ubuntu","os":"ubuntu-latest","arch":"x86_64","toolchain":"clang","perl_version":"5.40.5"},
-          {"platform_name":"ubuntu-arm","os":"ubuntu-24.04-arm","arch":"aarch64","toolchain":"clang","perl_version":"5.40.5"}
+          {"platform_name":"ubuntu-arm","os":"ubuntu-24.04-arm","arch":"aarch64","toolchain":"clang","perl_version":"5.40.5"},
+          {"platform_name":"ubuntu",    "os":"ubuntu-latest",   "arch":"x86_64", "toolchain":"gcc",  "perl_version":"5.40.5","name":"system xmake (upstream install)","variant":"system-xmake","prepare":"curl -fsSL https://xmake.io/shget.text -o /tmp/xmake-get.sh && bash /tmp/xmake-get.sh && rm -f /tmp/xmake-get.sh && echo XMAKE_SETUP=upstream >> \"$GITHUB_ENV\" && echo \"$HOME/.local/bin\" >> \"$GITHUB_PATH\""},
+          {"platform_name":"ubuntu","os":"ubuntu-latest","arch":"x86_64","toolchain":"gcc","perl_version":"5.40.5","name":"system xmake (distro package)","variant":"system-xmake-apt","prepare":"sudo apt-get update -qq && sudo apt-get install -y -qq xmake && echo XMAKE_SETUP=apt >> \"$GITHUB_ENV\""}
         ]
       task: |
         perl -V
@@ -153,6 +155,7 @@ jobs:
         curl -L https://cpanmin.us | perl - App::cpanminus
         command -v cpanm
         cpanm -v .
+
   macos:
     name: macOS
     secrets: inherit
