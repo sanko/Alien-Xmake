@@ -72,3 +72,5 @@ article.md
 /eg/nuklear/.xmake/
 /eg/_Inline/
 /eg/.xmake/
+
+.clang-format
